@@ -15,6 +15,7 @@ import {
   ConfigSetKey,
 } from './security/ipc';
 import { detectProviderFrom, compressSystem, compressMsgs } from './ai/router';
+import { openAICompatComplete } from './ai/providers';
 import {
   getDecryptedKey,
   setConfigKey,
@@ -162,46 +163,43 @@ async function routedComplete(payload: {
   if (provider === 'openai') {
     const apiKey = getDecryptedKey('OPENAI_API_KEY');
     if (!apiKey) throw new Error('OPENAI_API_KEY not set. Open Admin > Models to configure.');
-    const baseUrl = getDecryptedKey('OPENAI_BASE_URL') || 'https://api.openai.com/v1';
-    const msgs2 = sys ? [{ role: 'system', content: sys }, ...msgs] : msgs;
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, max_tokens: maxTok, messages: msgs2 }),
+    return openAICompatComplete({
+      baseUrl: getDecryptedKey('OPENAI_BASE_URL') || 'https://api.openai.com/v1',
+      apiKey,
+      model,
+      label: 'OpenAI',
+      messages: msgs,
+      system: sys,
+      maxTokens: maxTok,
     });
-    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const data = (await res.json()) as any;
-    return data.choices?.[0]?.message?.content ?? '';
   }
 
   if (provider === 'mistral') {
     const apiKey = getDecryptedKey('MISTRAL_API_KEY');
     if (!apiKey) throw new Error('MISTRAL_API_KEY not set. Open Admin > Models to configure.');
-    const baseUrl = getDecryptedKey('MISTRAL_BASE_URL') || 'https://api.mistral.ai/v1';
-    const msgs2 = sys ? [{ role: 'system', content: sys }, ...msgs] : msgs;
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, max_tokens: maxTok, messages: msgs2 }),
+    return openAICompatComplete({
+      baseUrl: getDecryptedKey('MISTRAL_BASE_URL') || 'https://api.mistral.ai/v1',
+      apiKey,
+      model,
+      label: 'Mistral',
+      messages: msgs,
+      system: sys,
+      maxTokens: maxTok,
     });
-    if (!res.ok) throw new Error(`Mistral ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const data = (await res.json()) as any;
-    return data.choices?.[0]?.message?.content ?? '';
   }
 
   if (provider === 'deepseek') {
     const apiKey = getDecryptedKey('DEEPSEEK_API_KEY');
     if (!apiKey) throw new Error('DEEPSEEK_API_KEY not set. Open Admin > Models to configure.');
-    const baseUrl = getDecryptedKey('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com/v1';
-    const msgs2 = sys ? [{ role: 'system', content: sys }, ...msgs] : msgs;
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, max_tokens: maxTok, messages: msgs2 }),
+    return openAICompatComplete({
+      baseUrl: getDecryptedKey('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com/v1',
+      apiKey,
+      model,
+      label: 'DeepSeek',
+      messages: msgs,
+      system: sys,
+      maxTokens: maxTok,
     });
-    if (!res.ok) throw new Error(`DeepSeek ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const data = (await res.json()) as any;
-    return data.choices?.[0]?.message?.content ?? '';
   }
 
   if (provider === 'ollama') {
