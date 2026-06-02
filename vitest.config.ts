@@ -11,7 +11,7 @@ export default defineConfig({
       // Scope coverage to the modules currently under test so the threshold is
       // meaningful. Expand this list as more logic is extracted + tested
       // (path to Dimension-1 "9/10": all of src/lib + electron non-UI ≥ 80%).
-      include: ['electron/security/**', 'electron/ai/**', 'src/lib/extract-json.ts'],
+      include: ['electron/security/**', 'electron/ai/**', 'electron/config/**', 'src/lib/extract-json.ts'],
       thresholds: { lines: 80, functions: 80, branches: 70 },
     },
   },

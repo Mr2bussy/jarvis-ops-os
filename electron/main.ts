@@ -1,19 +1,8 @@
-﻿import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  shell,
-  dialog,
-  safeStorage,
-  Notification,
-  globalShortcut,
-  session,
-} from 'electron';
+﻿import { app, BrowserWindow, ipcMain, shell, dialog, Notification, globalShortcut, session } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { spawn, exec } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import * as cron from 'node-cron';
 import { isPathInRoots } from './security/paths';
@@ -26,6 +15,16 @@ import {
   ConfigSetKey,
 } from './security/ipc';
 import { detectProviderFrom, compressSystem, compressMsgs } from './ai/router';
+import {
+  getDecryptedKey,
+  setConfigKey,
+  deleteConfigKey,
+  hasConfigKey,
+  ensureBridgeToken,
+  getAdvancedMode,
+  setAdvancedMode,
+} from './config/store';
+import { getSystemMetrics } from './system/metrics';
 
 // â”€â”€ Chromium flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.commandLine.appendSwitch('enable-speech-dispatcher');
@@ -48,64 +47,8 @@ function loadDotEnv() {
 loadDotEnv();
 
 // â”€â”€ Safe Storage config (OS-keychain backed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-interface ConfigStore {
-  [key: string]: string;
-}
-function configStorePath() {
-  return path.join(app.getPath('userData'), 'jarvis-config.json');
-}
-function readConfigStore(): ConfigStore {
-  try {
-    return JSON.parse(fs.readFileSync(configStorePath(), 'utf8'));
-  } catch {
-    return {};
-  }
-}
-function writeConfigStore(store: ConfigStore) {
-  fs.mkdirSync(path.dirname(configStorePath()), { recursive: true });
-  fs.writeFileSync(configStorePath(), JSON.stringify(store), 'utf8');
-}
-function getDecryptedKey(name: string): string {
-  const store = readConfigStore();
-  if (store[name]) {
-    try {
-      if (safeStorage.isEncryptionAvailable()) {
-        return safeStorage.decryptString(Buffer.from(store[name], 'base64'));
-      }
-      return Buffer.from(store[name], 'base64').toString('utf8');
-    } catch {
-      /* fall through to env */
-    }
-  }
-  return process.env[name] || '';
-}
-
-// Stable shared secret for the local MT5 bridge. Generated once, persisted with the
-// same encryption convention as API keys, so it survives restarts (and matches a
-// bridge instance that may still be alive on :1234 from a previous session).
-function ensureBridgeToken(): string {
-  let tok = getDecryptedKey('JARVIS_BRIDGE_TOKEN');
-  if (!tok) {
-    tok = randomBytes(24).toString('hex');
-    const store = readConfigStore();
-    store['JARVIS_BRIDGE_TOKEN'] = safeStorage.isEncryptionAvailable()
-      ? safeStorage.encryptString(tok).toString('base64')
-      : Buffer.from(tok).toString('base64');
-    writeConfigStore(store);
-  }
-  return tok;
-}
-
-// Advanced Mode gate for the raw shell (console:runCmd). OFF by default — opt-in &
-// audited. Not a secret, so stored as a plain flag in the config store.
-function getAdvancedMode(): boolean {
-  return readConfigStore()['ADVANCED_MODE'] === '1';
-}
-function setAdvancedMode(on: boolean): void {
-  const store = readConfigStore();
-  store['ADVANCED_MODE'] = on ? '1' : '0';
-  writeConfigStore(store);
-}
+// Config store, key encryption, the MT5 bridge token, and the Advanced-Mode flag
+// live in ./config/store (imported above) — extracted for testability + smaller main.
 ipcMain.handle('config:getAdvancedMode', () => getAdvancedMode());
 ipcMain.handle('config:setAdvancedMode', (_e, on: unknown) => {
   setAdvancedMode(Boolean(on));
@@ -114,11 +57,7 @@ ipcMain.handle('config:setAdvancedMode', (_e, on: unknown) => {
 
 ipcMain.handle('config:setKey', async (_evt, raw: unknown) => {
   const { name, value } = validate(ConfigSetKey, raw);
-  const store = readConfigStore();
-  store[name] = safeStorage.isEncryptionAvailable()
-    ? safeStorage.encryptString(value).toString('base64')
-    : Buffer.from(value).toString('base64');
-  writeConfigStore(store);
+  setConfigKey(name, value);
   if (name === 'ANTHROPIC_API_KEY') {
     process.env.ANTHROPIC_API_KEY = value;
     client = null;
@@ -130,28 +69,20 @@ ipcMain.handle('config:setKey', async (_evt, raw: unknown) => {
   return true;
 });
 ipcMain.handle('config:getKey', async (_evt, name: string) => getDecryptedKey(name));
-ipcMain.handle('config:hasKey', async (_evt, name: string) =>
-  Boolean(readConfigStore()[name] || process.env[name]),
-);
+ipcMain.handle('config:hasKey', async (_evt, name: string) => hasConfigKey(name));
 ipcMain.handle('config:deleteKey', async (_evt, name: string) => {
-  const store = readConfigStore();
-  delete store[name];
-  writeConfigStore(store);
+  deleteConfigKey(name);
   return true;
 });
 ipcMain.handle('config:getMt5', async () => ({
   host: getDecryptedKey('MT5_HOST') || 'localhost',
   port: parseInt(getDecryptedKey('MT5_PORT') || '1234', 10),
 }));
-ipcMain.handle('config:setMt5', async (_evt, host: string, port: number) => {
-  const store = readConfigStore();
-  const enc = (v: string) =>
-    safeStorage.isEncryptionAvailable()
-      ? safeStorage.encryptString(v).toString('base64')
-      : Buffer.from(v).toString('base64');
-  store['MT5_HOST'] = enc(host);
-  store['MT5_PORT'] = enc(String(port));
-  writeConfigStore(store);
+ipcMain.handle('config:setMt5', async (_evt, payload: { host: string; port: number }) => {
+  // preload sends a { host, port } object; read from it (previously mis-read as
+  // positional args, so MT5 host/port never actually saved).
+  setConfigKey('MT5_HOST', String(payload?.host ?? 'localhost'));
+  setConfigKey('MT5_PORT', String(payload?.port ?? 1234));
   return true;
 });
 ipcMain.handle('config:reload-keys', () => {
@@ -741,85 +672,7 @@ ipcMain.handle('jarvis:voice-diag', async () => {
 });
 
 // â”€â”€ System Metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-let prevCpuTimes = os.cpus().map((c) => ({ ...c.times }));
-function cpuUtilAll(): { overall: number; perCore: number[] } {
-  const cur = os.cpus();
-  let totalDelta = 0,
-    idleDelta = 0;
-  const perCore: number[] = [];
-  for (let i = 0; i < cur.length; i++) {
-    const a = prevCpuTimes[i] || cur[i].times;
-    const b = cur[i].times;
-    const at = a.user + a.nice + a.sys + a.idle + a.irq;
-    const bt = b.user + b.nice + b.sys + b.idle + b.irq;
-    const cTotal = bt - at;
-    const cIdle = b.idle - a.idle;
-    totalDelta += cTotal;
-    idleDelta += cIdle;
-    perCore.push(cTotal > 0 ? Math.max(0, Math.min(1, 1 - cIdle / cTotal)) : 0);
-  }
-  prevCpuTimes = cur.map((c) => ({ ...c.times }));
-  const overall = totalDelta > 0 ? Math.max(0, Math.min(1, 1 - idleDelta / totalDelta)) : 0;
-  return { overall, perCore };
-}
-
-function diskInfo(): Promise<{
-  used_gb: number;
-  total_gb: number;
-  drives: { caption: string; used_gb: number; total_gb: number }[];
-}> {
-  return new Promise((resolve) => {
-    if (process.platform !== 'win32') return resolve({ used_gb: 0, total_gb: 0, drives: [] });
-    exec('wmic logicaldisk get caption,size,freespace', (err, out) => {
-      if (err) return resolve({ used_gb: 0, total_gb: 0, drives: [] });
-      let total = 0,
-        free = 0;
-      const drives: { caption: string; used_gb: number; total_gb: number }[] = [];
-      for (const line of out.split(/\r?\n/).slice(1)) {
-        const parts = line.trim().split(/\s+/);
-        if (parts.length < 3) continue;
-        const f = parseInt(parts[1], 10),
-          s = parseInt(parts[2], 10);
-        if (!isNaN(f) && !isNaN(s) && s > 0) {
-          free += f;
-          total += s;
-          drives.push({ caption: parts[0], used_gb: (s - f) / 1e9, total_gb: s / 1e9 });
-        }
-      }
-      resolve({ used_gb: (total - free) / 1e9, total_gb: total / 1e9, drives });
-    });
-  });
-}
-
-ipcMain.handle('system:metrics', async () => {
-  const mem = { total: os.totalmem(), free: os.freemem() };
-  const disk = await diskInfo();
-  const { overall, perCore } = cpuUtilAll();
-  return {
-    host: os.hostname(),
-    platform: os.platform(),
-    arch: os.arch(),
-    release: os.release(),
-    uptime: os.uptime(),
-    cpu_count: os.cpus().length,
-    cpu_model: os.cpus()[0]?.model || 'unknown',
-    cpu_util: overall,
-    cpu_per_core: perCore,
-    cpu_speed_mhz: os.cpus()[0]?.speed || 0,
-    load_avg: os.loadavg(),
-    mem_total_gb: mem.total / 1e9,
-    mem_used_gb: (mem.total - mem.free) / 1e9,
-    mem_pct: (mem.total - mem.free) / mem.total,
-    disk_used_gb: disk.used_gb,
-    disk_total_gb: disk.total_gb,
-    disk_pct: disk.total_gb ? disk.used_gb / disk.total_gb : 0,
-    disk_drives: disk.drives,
-    net_ifaces: Object.keys(os.networkInterfaces()).length,
-    user: os.userInfo().username,
-    home: os.homedir(),
-    ts: Date.now(),
-  };
-});
+ipcMain.handle('system:metrics', () => getSystemMetrics());
 
 // â”€â”€ Apps Registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function appsRegistryPath() {
