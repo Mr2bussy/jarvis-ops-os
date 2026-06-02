@@ -1,0 +1,4 @@
+JARVIS Operations OS
+Copyright (c) 2024 JARVIS Operator
+
+All rights reserved. This software is proprietary and confidential.

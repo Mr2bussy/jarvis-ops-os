@@ -1,0 +1,630 @@
+/* ══════════════════════════════════════════════════════════════════
+   JARVIS PRO — INSTITUTIONAL TRADING TERMINAL
+   20 Hedge-Fund / Quant widgets — all data-dense, expert-grade
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ─── Shared types ───────────────────────────────────────────────── */
+type WidgetId =
+  | 'PRICE_CHART' | 'ORDER_BOOK' | 'CVD'
+  | 'GAMMA_EXPOSURE' | 'OPTIONS_FLOW' | 'DARK_POOL'
+  | 'FUNDING_RATES' | 'CORRELATION' | 'YIELD_CURVE' | 'COT_POSITIONING'
+  | 'LIQUIDITY_MAP' | 'SECTOR_ROTATION' | 'RISK_DASHBOARD' | 'CREDIT_SPREADS'
+  | 'INST_FLOW' | 'VOL_SURFACE' | 'MACRO_POSITIONING'
+  | 'POSITIONS' | 'EQUITY_CURVE' | 'EXECUTION_LOG';
+
+interface WidgetDef {
+  id: WidgetId; label: string; desc: string;
+  category: 'PRICE'|'FLOW'|'RISK'|'MACRO'|'QUANT'; color: string;
+}
+
+const WIDGET_REGISTRY: WidgetDef[] = [
+  { id:'PRICE_CHART',     label:'Price Chart',              desc:'OHLCV candlestick · EMA 9/21 · VWAP · Bollinger Bands · volume bars',        category:'PRICE', color:'#ff1a6b' },
+  { id:'ORDER_BOOK',      label:'Order Book L2',            desc:'Bid/ask depth map · cumulative imbalance · large order detection',            category:'FLOW',  color:'#00d084' },
+  { id:'CVD',             label:'CVD · Delta Flow',         desc:'Cumulative volume delta · buy vs sell pressure · aggressive order tracking',  category:'FLOW',  color:'#00e5ff' },
+  { id:'GAMMA_EXPOSURE',  label:'Gamma Exposure (GEX)',     desc:'Dealer net gamma by strike · flip level · pin/magnet risk analysis',         category:'RISK',  color:'#ffb300' },
+  { id:'OPTIONS_FLOW',    label:'Options Unusual Flow',     desc:'Large unusual options prints · sentiment score · whale activity radar',       category:'FLOW',  color:'#e879f9' },
+  { id:'DARK_POOL',       label:'Dark Pool Prints',         desc:'Institutional block trades · ATS volume · dark vs lit ratio by symbol',       category:'FLOW',  color:'#c8fb4e' },
+  { id:'FUNDING_RATES',   label:'Funding Rates',            desc:'8h perpetual funding across Binance/Bybit/OKX · annualised carry cost',       category:'FLOW',  color:'#e879f9' },
+  { id:'CORRELATION',     label:'Correlation Matrix',       desc:'30d rolling cross-asset correlation · regime shift detector',                 category:'QUANT', color:'#00e5ff' },
+  { id:'YIELD_CURVE',     label:'Yield Curve',              desc:'US Treasury 2Y/5Y/10Y/30Y · inversion signal · real yield vs breakeven',      category:'MACRO', color:'#ffb300' },
+  { id:'COT_POSITIONING', label:'COT Positioning',          desc:'CFTC Commitments of Traders · net spec vs commercial · extremes highlighted', category:'MACRO', color:'#c8fb4e' },
+  { id:'LIQUIDITY_MAP',   label:'Liquidity Map',            desc:'Stop cluster heatmap · liquidation levels · equal highs/lows',               category:'FLOW',  color:'#00e5ff' },
+  { id:'SECTOR_ROTATION', label:'Sector Rotation',          desc:'GICS sector relative strength vs SPX · risk-on/off flow · rotation speed',   category:'MACRO', color:'#00d084' },
+  { id:'RISK_DASHBOARD',  label:'Risk Dashboard',           desc:'Portfolio VaR (95/99%) · Sharpe · Sortino · max DD · beta vs SPX',           category:'QUANT', color:'#ff1a6b' },
+  { id:'CREDIT_SPREADS',  label:'Credit Spreads',           desc:'HY/IG OAS spreads · CDS 5Y · swap spreads · credit cycle indicator',         category:'MACRO', color:'#ffb300' },
+  { id:'INST_FLOW',       label:'Institutional Flow',       desc:'Net institutional buy/sell by asset · 13F delta · smart money tracker',       category:'FLOW',  color:'#00d084' },
+  { id:'VOL_SURFACE',     label:'Vol Surface',              desc:'Implied vol term structure · put/call skew · 25d RR · DVOL index',            category:'RISK',  color:'#e879f9' },
+  { id:'MACRO_POSITIONING',label:'Macro Positioning',       desc:'G10 FX COT net specs · commodity net longs · hedge fund beta exposure',      category:'MACRO', color:'#c8fb4e' },
+  { id:'POSITIONS',       label:'Open Positions',           desc:'Live MT5 positions · real-time PnL · risk per trade · margin used',          category:'PRICE', color:'#00d084' },
+  { id:'EQUITY_CURVE',    label:'Equity Curve',             desc:'Account equity timeline · drawdown overlay · Sharpe / Calmar metrics',       category:'QUANT', color:'#00d084' },
+  { id:'EXECUTION_LOG',   label:'Execution Log',            desc:'Order fills · slippage · algo attribution · market impact analysis',         category:'PRICE', color:'var(--cyan-dim)' },
+];
+
+const DEFAULT_LAYOUT: WidgetId[][] = [
+  ['PRICE_CHART',    'ORDER_BOOK',     'CVD'],
+  ['GAMMA_EXPOSURE', 'OPTIONS_FLOW',   'DARK_POOL'],
+  ['RISK_DASHBOARD', 'EQUITY_CURVE',   'EXECUTION_LOG'],
+];
+
+function rnd(lo: number, hi: number, d = 2) { return +(Math.random()*(hi-lo)+lo).toFixed(d); }
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random()*arr.length)]; }
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 1 — PRICE CHART
+   ══════════════════════════════════════════════════════════════════ */
+function useCandleData(seed: number, n = 80) {
+  const out: {o:number;c:number;h:number;l:number;v:number}[] = [];
+  let p = seed || 78000;
+  for (let i = 0; i < n; i++) {
+    const o = p, chg = (Math.random()-0.488)*p*0.0014, c = o+chg;
+    const wick = p*0.0005;
+    out.push({o,c,h:Math.max(o,c)+Math.random()*wick,l:Math.min(o,c)-Math.random()*wick,v:100+Math.random()*900});
+    p = c;
+  }
+  return out;
+}
+
+function WPriceChart({connected,livePrice}:{connected:boolean;livePrice:number}) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [tf,setTf]   = useState<'1m'|'3m'|'5m'|'15m'|'1h'>('3m');
+  const [ind,setInd] = useState<'EMA'|'VWAP'|'BB'>('EMA');
+  const seed = livePrice > 100 ? livePrice : 78120;
+  const candles = useCandleData(seed);
+
+  useEffect(()=>{
+    const cv=ref.current; if(!cv)return;
+    const ctx=cv.getContext('2d')!;
+    const W=cv.width,H=cv.height;
+    const PR=64,PT=8,PB=32,PL=6;
+    const pW=W-PR-PL, pH=H-PT-PB;
+    const lows=candles.map(c=>c.l),highs=candles.map(c=>c.h);
+    const lo=Math.min(...lows),hi=Math.max(...highs),rng=hi-lo||1;
+    const toY=(v:number)=>PT+(1-(v-lo)/rng)*pH;
+    const cSp=pW/candles.length, cW=cSp*0.62;
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#04070f'); bg.addColorStop(1,'#020408');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    // grid + price axis
+    for(let i=0;i<=5;i++){
+      const y=PT+(i/5)*pH;
+      ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(PL,y); ctx.lineTo(PL+pW,y); ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.28)'; ctx.font='8px monospace';
+      ctx.fillText('$'+(hi-(i/5)*rng).toFixed(0),PL+pW+2,y+3);
+    }
+    // time axis
+    for(let i=0;i<candles.length;i+=20){
+      ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.font='7px monospace';
+      ctx.fillText(String(i).padStart(2,'0')+':00',PL+i*cSp,H-2);
+    }
+    // EMA
+    if(ind==='EMA'){
+      [[9,'#00e5ffaa'],[21,'#ffb300aa']].forEach(([per,col])=>{
+        const k=2/(+per+1); let e=candles[0].c;
+        ctx.beginPath(); ctx.strokeStyle=col as string; ctx.lineWidth=1.2;
+        candles.forEach((c,i)=>{ e=c.c*k+e*(1-k); const x=PL+i*cSp+cSp/2; if(i===0)ctx.moveTo(x,toY(e)); else ctx.lineTo(x,toY(e)); });
+        ctx.stroke();
+      });
+    }
+    // VWAP
+    if(ind==='VWAP'){
+      let cumPV=0,cumV=0;
+      ctx.beginPath(); ctx.strokeStyle='#e879f9cc'; ctx.lineWidth=1.5;
+      candles.forEach((c,i)=>{ const typ=(c.h+c.l+c.c)/3; cumPV+=typ*c.v; cumV+=c.v; const v=cumPV/cumV; const x=PL+i*cSp+cSp/2; if(i===0)ctx.moveTo(x,toY(v)); else ctx.lineTo(x,toY(v)); });
+      ctx.stroke();
+    }
+    // BB
+    if(ind==='BB'){
+      const closes=candles.map(c=>c.c), per=20;
+      const sma:number[]=[],upper:number[]=[],lower:number[]=[];
+      for(let i=0;i<closes.length;i++){
+        const sl=closes.slice(Math.max(0,i-per+1),i+1);
+        const m=sl.reduce((a,b)=>a+b,0)/sl.length;
+        const sd=Math.sqrt(sl.reduce((a,b)=>a+(b-m)**2,0)/sl.length);
+        sma.push(m); upper.push(m+2*sd); lower.push(m-2*sd);
+      }
+      const drawLine=(arr:number[],col:string,dash:number[])=>{
+        ctx.beginPath(); ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash(dash);
+        arr.forEach((v,i)=>{ const x=PL+i*cSp+cSp/2; if(i===0)ctx.moveTo(x,toY(v)); else ctx.lineTo(x,toY(v)); }); ctx.stroke(); ctx.setLineDash([]);
+      };
+      drawLine(sma,'#ffb30099',[]); drawLine(upper,'#00e5ff66',[2,2]); drawLine(lower,'#00e5ff66',[2,2]);
+    }
+    // candles
+    candles.forEach((c,i)=>{
+      const x=PL+i*cSp, up=c.c>=c.o, col=up?'#00d084':'#ff1a6b';
+      ctx.strokeStyle=col; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x+cW/2,toY(c.h)); ctx.lineTo(x+cW/2,toY(c.l)); ctx.stroke();
+      ctx.fillStyle=up?col+'bb':col+'ee';
+      ctx.fillRect(x,toY(Math.max(c.o,c.c)),cW,Math.max(1,Math.abs(toY(c.o)-toY(c.c))));
+    });
+    // volume bars
+    const maxV=Math.max(...candles.map(c=>c.v));
+    candles.forEach((c,i)=>{ const up=c.c>=c.o; ctx.fillStyle=(up?'#00d084':'#ff1a6b')+'44'; ctx.fillRect(PL+i*cSp,H-PB,(c.v/maxV)*22); });
+    // price tag
+    const last=candles[candles.length-1].c, ly=toY(last);
+    ctx.setLineDash([3,3]); ctx.strokeStyle='#ff1a6b'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(PL,ly); ctx.lineTo(PL+pW,ly); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#ff1a6b'; ctx.fillRect(PL+pW,ly-8,PR-1,14);
+    ctx.fillStyle='#fff'; ctx.font='bold 8.5px monospace'; ctx.fillText('$'+last.toFixed(1),PL+pW+2,ly+4);
+    if(!connected){ ctx.fillStyle='rgba(255,26,107,0.11)'; ctx.fillRect(PL+3,H-PB-13,62,11); ctx.fillStyle='#ff1a6b88'; ctx.font='7.5px monospace'; ctx.fillText('SIM',PL+5,H-PB-3); }
+  });
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#04070f',border:'1px solid #ff1a6b30'}}>
+      <div style={{display:'flex',alignItems:'center',gap:5,padding:'3px 7px',borderBottom:'1px solid #ff1a6b20',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#ff1a6b',letterSpacing:'0.22em'}}>BTC/USD</span>
+        <span className="font-display" style={{fontSize:14,color:'#fff',letterSpacing:'-0.02em'}}>${(livePrice>100?livePrice:78120).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+        <span className="font-mono" style={{fontSize:8,color:'#00d084'}}>+0.42%</span>
+        <div style={{marginLeft:'auto',display:'flex',gap:2}}>
+          {(['1m','3m','5m','15m','1h'] as const).map(t=>(
+            <button key={t} onClick={()=>setTf(t)} className="hud-label" style={{padding:'1px 4px',fontSize:7,border:`1px solid ${tf===t?'#ff1a6b':'rgba(255,255,255,0.08)'}`,background:tf===t?'#ff1a6b14':'transparent',color:tf===t?'#ff1a6b':'rgba(255,255,255,0.35)',cursor:'pointer',letterSpacing:'0.08em'}}>{t}</button>
+          ))}
+          {(['EMA','VWAP','BB'] as const).map(i=>(
+            <button key={i} onClick={()=>setInd(i)} className="hud-label" style={{padding:'1px 4px',fontSize:7,border:`1px solid ${ind===i?'#00e5ff':'rgba(255,255,255,0.08)'}`,background:ind===i?'#00e5ff14':'transparent',color:ind===i?'#00e5ff':'rgba(255,255,255,0.35)',cursor:'pointer',letterSpacing:'0.08em'}}>{i}</button>
+          ))}
+        </div>
+      </div>
+      <canvas ref={ref} width={640} height={220} style={{width:'100%',flex:1,display:'block'}} />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 2 — ORDER BOOK L2
+   ══════════════════════════════════════════════════════════════════ */
+function WOrderBook() {
+  const mid=78120;
+  const [book]=useState(()=>{
+    const asks=Array.from({length:14},(_, i)=>({p:mid+(i+1)*7.5,s:rnd(0.05,5.5),o:Math.floor(Math.random()*60+1)}));
+    const bids=Array.from({length:14},(_, i)=>({p:mid-(i+1)*7.5,s:rnd(0.05,6.2),o:Math.floor(Math.random()*60+1)}));
+    return {asks:asks.reverse(),bids,spread:(asks[0].p-bids[0].p).toFixed(1)};
+  });
+  const maxS=Math.max(...book.asks.map(a=>a.s),...book.bids.map(b=>b.s));
+  const totalAsk=book.asks.reduce((s,a)=>s+a.s,0);
+  const totalBid=book.bids.reduce((s,b)=>s+b.s,0);
+  const imb=((totalBid/(totalAsk+totalBid))*100).toFixed(0);
+  // cumulative totals
+  const askCum: number[]=[], bidCum: number[]=[];
+  let ca=0,cb=0;
+  book.asks.forEach(a=>{ca+=a.s; askCum.push(ca);});
+  book.bids.forEach(b=>{cb+=b.s; bidCum.push(cb);});
+  const maxCum=Math.max(ca,cb);
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#04090e',border:'1px solid #00d08432'}}>
+      <div style={{display:'flex',justifyContent:'space-between',padding:'3px 7px',borderBottom:'1px solid #00d08420',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#00d084',letterSpacing:'0.22em'}}>ORDER BOOK · L2</span>
+        <div style={{display:'flex',gap:8}}>
+          <span className="font-mono" style={{fontSize:8,color:'#00d084'}}>BID {imb}%</span>
+          <span className="font-mono" style={{fontSize:8,color:'#ff1a6b'}}>ASK {(100-+imb)}%</span>
+          <span className="font-mono" style={{fontSize:8,color:'#ffb300'}}>SPR {book.spread}</span>
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 40px',padding:'2px 7px',borderBottom:'1px solid rgba(255,255,255,0.04)',flexShrink:0}}>
+        {['PRICE','SIZE','ORD'].map(h=><span key={h} className="hud-label" style={{fontSize:6.5,color:'rgba(255,255,255,0.28)',letterSpacing:'0.1em'}}>{h}</span>)}
+      </div>
+      <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+        <div style={{flex:1,overflowY:'auto'}} className="nx-scroll">
+          {book.asks.map((a,i)=>(
+            <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr 40px',padding:'2px 7px',position:'relative'}}>
+              <div style={{position:'absolute',right:0,top:0,bottom:0,width:`${(askCum[i]/maxCum)*100}%`,background:'#ff1a6b14'}}/>
+              <span className="font-mono" style={{fontSize:9,color:'#ff1a6b',zIndex:1}}>{a.p.toFixed(1)}</span>
+              <span className="font-mono" style={{fontSize:9,color:'rgba(255,255,255,0.65)',zIndex:1}}>{a.s.toFixed(3)}</span>
+              <span className="font-mono" style={{fontSize:8.5,color:'rgba(255,255,255,0.3)',zIndex:1}}>{a.o}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{padding:'3px 7px',background:'rgba(255,255,255,0.04)',textAlign:'center',flexShrink:0}}>
+          <span className="font-mono" style={{fontSize:9,color:'#ffb300'}}>MID ${mid.toFixed(1)} · SPREAD {book.spread}</span>
+        </div>
+        <div style={{flex:1,overflowY:'auto'}} className="nx-scroll">
+          {book.bids.map((b,i)=>(
+            <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr 40px',padding:'2px 7px',position:'relative'}}>
+              <div style={{position:'absolute',left:0,top:0,bottom:0,width:`${(bidCum[i]/maxCum)*100}%`,background:'#00d08414'}}/>
+              <span className="font-mono" style={{fontSize:9,color:'#00d084',zIndex:1}}>{b.p.toFixed(1)}</span>
+              <span className="font-mono" style={{fontSize:9,color:'rgba(255,255,255,0.65)',zIndex:1}}>{b.s.toFixed(3)}</span>
+              <span className="font-mono" style={{fontSize:8.5,color:'rgba(255,255,255,0.3)',zIndex:1}}>{b.o}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 3 — CVD · DELTA FLOW
+   ══════════════════════════════════════════════════════════════════ */
+function WCVD() {
+  const ref=useRef<HTMLCanvasElement>(null);
+  const [rows]=useState(()=>{
+    let cvd=0;
+    return Array.from({length:120},(_, i)=>{
+      const d=(Math.random()-0.47)*220; cvd+=d;
+      return {i,d,cvd,bv:d>0?Math.abs(d):0,sv:d<0?Math.abs(d):0};
+    });
+  });
+  useEffect(()=>{
+    const cv=ref.current; if(!cv)return;
+    const ctx=cv.getContext('2d')!;
+    const W=cv.width,H=cv.height;
+    const cvds=rows.map(r=>r.cvd), lo=Math.min(...cvds),hi=Math.max(...cvds),rng=hi-lo||1;
+    const toY=(v:number)=>8+(1-(v-lo)/rng)*(H-44);
+    ctx.clearRect(0,0,W,H); ctx.fillStyle='#04080c'; ctx.fillRect(0,0,W,H);
+    // zero
+    const zY=toY(0);
+    ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(0,zY); ctx.lineTo(W,zY); ctx.stroke(); ctx.setLineDash([]);
+    const bw=W/rows.length;
+    rows.forEach((r,i)=>{
+      const bh=(Math.abs(r.d)/220)*18;
+      ctx.fillStyle=(r.d>0?'#00d084':'#ff1a6b')+'88';
+      ctx.fillRect(i*bw,H-32-bh,bw-1,bh);
+    });
+    ctx.beginPath(); ctx.strokeStyle='#00e5ff'; ctx.lineWidth=1.5;
+    rows.forEach((r,i)=>{ const x=i*bw+bw/2; if(i===0)ctx.moveTo(x,toY(r.cvd)); else ctx.lineTo(x,toY(r.cvd)); }); ctx.stroke();
+    const last=rows[rows.length-1];
+    ctx.fillStyle=last.cvd>=0?'#00d084':'#ff1a6b'; ctx.font='bold 9px monospace';
+    ctx.fillText((last.cvd>=0?'+':'')+last.cvd.toFixed(0),6,18);
+    ctx.fillStyle='rgba(255,255,255,0.28)'; ctx.font='7.5px monospace'; ctx.fillText('CVD',6,28);
+  });
+  const last=rows[rows.length-1];
+  const buyPct=(rows.filter(r=>r.d>0).length/rows.length*100).toFixed(0);
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#04080c',border:'1px solid #00e5ff30'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 7px',borderBottom:'1px solid #00e5ff18',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#00e5ff',letterSpacing:'0.22em'}}>CVD · DELTA FLOW</span>
+        <div style={{display:'flex',gap:8}}>
+          <span className="font-mono" style={{fontSize:8,color:'#00d084'}}>BUY {buyPct}%</span>
+          <span className="font-mono" style={{fontSize:8,color:'#ff1a6b'}}>SELL {(100-+buyPct)}%</span>
+          <span className="font-mono" style={{fontSize:8,color:last.d>0?'#00d084':'#ff1a6b'}}>Δ{last.d>=0?'+':''}{last.d.toFixed(0)}</span>
+          <span className="font-mono" style={{fontSize:8,color:last.cvd>=0?'#00d084':'#ff1a6b'}}>Σ{last.cvd>=0?'+':''}{last.cvd.toFixed(0)}</span>
+        </div>
+      </div>
+      <canvas ref={ref} width={480} height={160} style={{width:'100%',flex:1,display:'block'}} />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 4 — GAMMA EXPOSURE (GEX)
+   ══════════════════════════════════════════════════════════════════ */
+function WGammaExposure() {
+  const ref=useRef<HTMLCanvasElement>(null);
+  const spot=78000;
+  const [strikes]=useState(()=>Array.from({length:17},(_, i)=>({s:spot-8000+i*1000,g:(Math.random()-0.5)*4000,atm:Math.abs(spot-8000+i*1000-spot)<600})));
+  useEffect(()=>{
+    const cv=ref.current; if(!cv)return;
+    const ctx=cv.getContext('2d')!;
+    const W=cv.width,H=cv.height,PAD=8,LH=18,pH=H-PAD*2-LH;
+    ctx.clearRect(0,0,W,H); ctx.fillStyle='#060a0f'; ctx.fillRect(0,0,W,H);
+    const maxA=Math.max(...strikes.map(s=>Math.abs(s.g)));
+    const bw=(W-PAD*2)/strikes.length, zy=PAD+pH/2;
+    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(PAD,zy); ctx.lineTo(W-PAD,zy); ctx.stroke(); ctx.setLineDash([]);
+    strikes.forEach((st,i)=>{
+      const x=PAD+i*bw, bh=(Math.abs(st.g)/maxA)*(pH/2-4);
+      if(st.atm){ ctx.strokeStyle='#ffb30055'; ctx.lineWidth=1.5; ctx.setLineDash([2,2]); ctx.beginPath(); ctx.moveTo(x+bw/2,PAD); ctx.lineTo(x+bw/2,H-LH); ctx.stroke(); ctx.setLineDash([]); }
+      const col=st.g>0?'#00d084bb':'#ff1a6bbb';
+      ctx.fillStyle=col;
+      if(st.g>0) ctx.fillRect(x+1,zy-bh,bw-2,bh); else ctx.fillRect(x+1,zy,bw-2,bh);
+      ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.font='6px monospace';
+      ctx.fillText((st.s/1000).toFixed(0)+'K',x+1,H-2);
+    });
+    const net=strikes.reduce((s,x)=>s+x.g,0);
+    ctx.fillStyle='#ffb300'; ctx.font='8px monospace'; ctx.fillText('NET GEX '+(net>=0?'+':''+(net/1000).toFixed(1)+'K'),6,14);
+    ctx.fillStyle=net>0?'#00d084':'#ff1a6b'; ctx.fillText(net>0?'DEALER LONG γ':'DEALER SHORT γ',6,24);
+  });
+  const net=strikes.reduce((s,x)=>s+x.g,0);
+  const flipStrike=strikes.find(s=>s.g*strikes[strikes.indexOf(s)+1]?.g<0);
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#060a0f',border:'1px solid #ffb30030'}}>
+      <div style={{display:'flex',justifyContent:'space-between',padding:'3px 7px',borderBottom:'1px solid #ffb30018',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#ffb300',letterSpacing:'0.22em'}}>GAMMA EXPOSURE · DEALER NET</span>
+        <div style={{display:'flex',gap:8}}>
+          <span className="font-mono" style={{fontSize:8,color:'#ffb300'}}>GEX {net>=0?'+':''}{(net/1000).toFixed(1)}B</span>
+          {flipStrike && <span className="font-mono" style={{fontSize:8,color:'#e879f9'}}>FLIP ${flipStrike.s.toLocaleString()}</span>}
+          <span className="font-mono" style={{fontSize:8,color:net>0?'#00d084':'#ff1a6b'}}>{net>0?'PIN ↑':'MAGNET ↓'}</span>
+        </div>
+      </div>
+      <canvas ref={ref} width={480} height={160} style={{width:'100%',flex:1,display:'block'}} />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 5 — OPTIONS UNUSUAL FLOW
+   ══════════════════════════════════════════════════════════════════ */
+function WOptionsFlow() {
+  const [rows]=useState(()=>[
+    {t:'14:28:03',sym:'SPY',type:'CALL',exp:'Jun20',str:'555C',prem:'$4.2M',side:'SWEEP',iv:38.2,oi:12400,score:94,bull:true},
+    {t:'14:25:11',sym:'QQQ',type:'PUT', exp:'May17',str:'470P',prem:'$2.8M',side:'BLOCK',iv:42.1,oi:8300, score:88,bull:false},
+    {t:'14:22:44',sym:'BTC', type:'CALL',exp:'Jun27',str:'82KC', prem:'$1.9M',side:'SWEEP',iv:61.3,oi:5500, score:91,bull:true},
+    {t:'14:19:30',sym:'NVDA',type:'CALL',exp:'Jun21',str:'1050C',prem:'$3.1M',side:'SWEEP',iv:55.7,oi:9200, score:85,bull:true},
+    {t:'14:15:02',sym:'GLD', type:'CALL',exp:'Jul18',str:'250C', prem:'$0.9M',side:'BLOCK',iv:19.4,oi:6700, score:72,bull:true},
+    {t:'14:11:19',sym:'TLT', type:'PUT', exp:'May31',str:'92P',  prem:'$1.4M',side:'SWEEP',iv:22.8,oi:4100, score:79,bull:false},
+    {t:'14:08:55',sym:'XLF', type:'CALL',exp:'Jun20',str:'44C',  prem:'$0.7M',side:'BLOCK',iv:24.1,oi:15600,score:68,bull:true},
+    {t:'14:05:33',sym:'ETH', type:'PUT', exp:'May24',str:'2900P',prem:'$1.1M',side:'SWEEP',iv:58.9,oi:3300, score:83,bull:false},
+  ]);
+  const scoreCol=(s:number)=>s>=90?'#ff1a6b':s>=80?'#ffb300':s>=70?'#00e5ff':'#00d084';
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#080412',border:'1px solid #e879f930'}}>
+      <div style={{display:'flex',justifyContent:'space-between',padding:'3px 7px',borderBottom:'1px solid #e879f918',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#e879f9',letterSpacing:'0.22em'}}>OPTIONS UNUSUAL FLOW · WHALE RADAR</span>
+        <span className="font-mono" style={{fontSize:7.5,color:'#ff1a6b'}}>SWEEP = aggressive · BLOCK = negotiated</span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'46px 34px 34px 38px 44px 46px 36px 28px 28px',padding:'2px 7px',borderBottom:'1px solid rgba(255,255,255,0.04)',flexShrink:0}}>
+        {['TIME','SYM','TYPE','EXP','STK','PREM','SIDE','IV','SCR'].map(h=><span key={h} className="hud-label" style={{fontSize:6.5,color:'rgba(255,255,255,0.28)',letterSpacing:'0.08em'}}>{h}</span>)}
+      </div>
+      <div style={{flex:1,overflowY:'auto'}} className="nx-scroll">
+        {rows.map((r,i)=>(
+          <div key={i} style={{display:'grid',gridTemplateColumns:'46px 34px 34px 38px 44px 46px 36px 28px 28px',padding:'2.5px 7px',borderBottom:'1px dashed rgba(255,255,255,0.04)',alignItems:'center',background:i===0?'rgba(232,121,249,0.05)':'transparent'}}>
+            <span className="font-mono" style={{fontSize:8,color:'rgba(255,255,255,0.35)'}}>{r.t}</span>
+            <span className="font-mono" style={{fontSize:9.5,color:'#00e5ff',fontWeight:600}}>{r.sym}</span>
+            <span className="hud-label" style={{fontSize:7.5,color:r.type==='CALL'?'#00d084':'#ff1a6b',letterSpacing:'0.08em'}}>{r.type}</span>
+            <span className="font-mono" style={{fontSize:8,color:'rgba(255,255,255,0.45)'}}>{r.exp}</span>
+            <span className="font-mono" style={{fontSize:8.5,color:'rgba(255,255,255,0.7)'}}>{r.str}</span>
+            <span className="font-mono" style={{fontSize:9,color:'#e879f9',fontWeight:600}}>{r.prem}</span>
+            <span className="hud-label" style={{fontSize:7.5,color:r.side==='SWEEP'?'#ff1a6b':'#ffb300',letterSpacing:'0.06em'}}>{r.side}</span>
+            <span className="font-mono" style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{r.iv}</span>
+            <span className="font-mono" style={{fontSize:9,color:scoreCol(r.score),fontWeight:700}}>{r.score}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 6 — DARK POOL PRINTS
+   ══════════════════════════════════════════════════════════════════ */
+function WDarkPool() {
+  const [rows]=useState(()=>[
+    {t:'14:27:18',sym:'SPY', px:550.42,sz:485000,val:'$266.7M',venue:'FINRA ATS',litPct:12,bull:true },
+    {t:'14:24:05',sym:'AAPL',px:188.90,sz:920000,val:'$173.8M',venue:'IEX',       litPct:8, bull:true },
+    {t:'14:20:33',sym:'TSLA',px:174.20,sz:640000,val:'$111.5M',venue:'BATS ATS',  litPct:5, bull:false},
+    {t:'14:18:11',sym:'QQQ', px:471.85,sz:230000,val:'$108.5M',venue:'FINRA ATS', litPct:18,bull:false},
+    {t:'14:15:44',sym:'MSFT',px:414.30,sz:260000,val:'$107.7M',venue:'IEX',       litPct:22,bull:true },
+    {t:'14:12:02',sym:'NVDA',px:1025.0,sz:95000, val:'$97.4M', venue:'BATS ATS',  litPct:7, bull:true },
+    {t:'14:09:50',sym:'BTC', px:78050, sz:1240,  val:'$96.8M', venue:'COINBASE',  litPct:0, bull:true },
+    {t:'14:06:22',sym:'GLD', px:222.80,sz:420000,val:'$93.6M', venue:'FINRA ATS', litPct:15,bull:true },
+  ]);
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#060b05',border:'1px solid #c8fb4e28'}}>
+      <div style={{display:'flex',justifyContent:'space-between',padding:'3px 7px',borderBottom:'1px solid #c8fb4e14',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#c8fb4e',letterSpacing:'0.22em'}}>DARK POOL PRINTS · ATS BLOCK TRADES</span>
+        <span className="font-mono" style={{fontSize:7.5,color:'rgba(255,255,255,0.35)'}}>LIT% = exchange-routed portion</span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'46px 36px 58px 58px 60px 1fr 28px',padding:'2px 7px',borderBottom:'1px solid rgba(255,255,255,0.04)',flexShrink:0}}>
+        {['TIME','SYM','PRICE','SIZE','VALUE','VENUE','LIT'].map(h=><span key={h} className="hud-label" style={{fontSize:6.5,color:'rgba(255,255,255,0.28)',letterSpacing:'0.08em'}}>{h}</span>)}
+      </div>
+      <div style={{flex:1,overflowY:'auto'}} className="nx-scroll">
+        {rows.map((r,i)=>(
+          <div key={i} style={{display:'grid',gridTemplateColumns:'46px 36px 58px 58px 60px 1fr 28px',padding:'2.5px 7px',borderBottom:'1px dashed rgba(255,255,255,0.04)',alignItems:'center',background:i===0?'rgba(200,251,78,0.04)':'transparent'}}>
+            <span className="font-mono" style={{fontSize:8,color:'rgba(255,255,255,0.35)'}}>{r.t}</span>
+            <span className="font-mono" style={{fontSize:9.5,color:'#00e5ff',fontWeight:600}}>{r.sym}</span>
+            <span className="font-mono" style={{fontSize:8.5,color:'rgba(255,255,255,0.7)'}}>${r.px.toLocaleString()}</span>
+            <span className="font-mono" style={{fontSize:8,color:'rgba(255,255,255,0.5)'}}>{(r.sz/1000).toFixed(0)}K</span>
+            <span className="font-mono" style={{fontSize:9,color:'#c8fb4e',fontWeight:600}}>{r.val}</span>
+            <span className="font-mono" style={{fontSize:7.5,color:'rgba(255,255,255,0.35)'}}>{r.venue}</span>
+            <span className="font-mono" style={{fontSize:8,color:r.litPct<10?'#ff1a6b':'rgba(255,255,255,0.4)'}}>{r.litPct}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 7 — FUNDING RATES MULTI-EXCHANGE
+   ══════════════════════════════════════════════════════════════════ */
+function WFundingRates() {
+  const [rows]=useState(()=>[
+    {ex:'Binance', sym:'BTCUSDT', r:0.0102, ann:+11.1, next:'7h22m', oi:'$14.2B', pred:'+'},
+    {ex:'Bybit',   sym:'BTCUSDT', r:-0.0031,ann:-3.4,  next:'7h22m', oi:'$8.7B',  pred:'-'},
+    {ex:'OKX',     sym:'BTC-USDT',r:0.0056, ann:+6.1,  next:'7h22m', oi:'$6.1B',  pred:'+'},
+    {ex:'Binance', sym:'ETHUSDT', r:0.0084, ann:+9.2,  next:'7h22m', oi:'$5.3B',  pred:'+'},
+    {ex:'Bybit',   sym:'ETHUSDT', r:-0.0021,ann:-2.3,  next:'7h22m', oi:'$3.9B',  pred:'-'},
+    {ex:'Binance', sym:'SOLUSDT', r:0.0231, ann:+25.2, next:'7h22m', oi:'$1.8B',  pred:'+'},
+    {ex:'OKX',     sym:'SOL-USDT',r:0.0198, ann:+21.6, next:'7h22m', oi:'$0.9B',  pred:'+'},
+    {ex:'Binance', sym:'XRPUSDT', r:-0.0071,ann:-7.7,  next:'7h22m', oi:'$1.2B',  pred:'-'},
+  ]);
+  const maxAnn=Math.max(...rows.map(r=>Math.abs(r.ann)));
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#07030f',border:'1px solid #e879f928'}}>
+      <div style={{display:'flex',justifyContent:'space-between',padding:'3px 7px',borderBottom:'1px solid #e879f914',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#e879f9',letterSpacing:'0.22em'}}>FUNDING RATES · PERP · 8H</span>
+        <span className="font-mono" style={{fontSize:7.5,color:'rgba(255,255,255,0.3)'}}>+rate = longs pay shorts</span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'52px 70px 54px 52px 44px 1fr',padding:'2px 7px',borderBottom:'1px solid rgba(255,255,255,0.04)',flexShrink:0}}>
+        {['EXCH','SYMBOL','8H RATE','ANNLSD','NEXT','OI'].map(h=><span key={h} className="hud-label" style={{fontSize:6.5,color:'rgba(255,255,255,0.28)',letterSpacing:'0.08em'}}>{h}</span>)}
+      </div>
+      <div style={{flex:1,overflowY:'auto'}} className="nx-scroll">
+        {rows.map((r,i)=>(
+          <div key={i} style={{padding:'2px 7px',borderBottom:'1px dashed rgba(255,255,255,0.04)'}}>
+            <div style={{display:'grid',gridTemplateColumns:'52px 70px 54px 52px 44px 1fr',alignItems:'center'}}>
+              <span className="font-mono" style={{fontSize:7.5,color:'rgba(255,255,255,0.4)'}}>{r.ex}</span>
+              <span className="font-mono" style={{fontSize:9,color:'#e879f9'}}>{r.sym}</span>
+              <span className="font-mono" style={{fontSize:10,color:r.r>0?'#00d084':'#ff1a6b',fontWeight:600}}>{r.r>0?'+':''}{r.r.toFixed(4)}%</span>
+              <span className="font-mono" style={{fontSize:8.5,color:r.ann>0?'#00d08499':'#ff1a6b99'}}>{r.ann>0?'+':''}{r.ann.toFixed(1)}%</span>
+              <span className="font-mono" style={{fontSize:7.5,color:'#ffb300'}}>{r.next}</span>
+              <span className="font-mono" style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>{r.oi}</span>
+            </div>
+            <div style={{height:2,marginTop:1,background:'rgba(255,255,255,0.05)',position:'relative'}}>
+              <div style={{position:'absolute',top:0,left:0,height:'100%',width:`${(Math.abs(r.ann)/maxAnn)*100}%`,background:r.ann>0?'#00d08466':'#ff1a6b66'}} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 8 — CORRELATION MATRIX
+   ══════════════════════════════════════════════════════════════════ */
+function WCorrelation() {
+  const ref=useRef<HTMLCanvasElement>(null);
+  const assets=['BTC','ETH','SPX','NAS','GLD','DXY','VIX','OIL','TLT','HYG'];
+  const [mat]=useState(()=>{
+    const m:number[][]=assets.map((_,i)=>assets.map((_,j)=>{
+      if(i===j)return 1;
+      const base=[
+        [1,0.92,-0.12,-0.08,0.18,-0.45,0.32,-0.05,-0.28,0.21],
+        [0.92,1,-0.1,-0.06,0.14,-0.41,0.29,-0.03,-0.25,0.19],
+        [-0.12,-0.1,1,0.97,-0.22,-0.68,-0.78,0.41,0.62,0.82],
+        [-0.08,-0.06,0.97,1,-0.18,-0.71,-0.82,0.38,0.59,0.79],
+        [0.18,0.14,-0.22,-0.18,1,-0.52,0.08,-0.12,0.44,-0.18],
+        [-0.45,-0.41,-0.68,-0.71,-0.52,1,0.44,-0.38,-0.52,-0.61],
+        [0.32,0.29,-0.78,-0.82,0.08,0.44,1,-0.22,-0.38,-0.71],
+        [-0.05,-0.03,0.41,0.38,-0.12,-0.38,-0.22,1,0.08,0.25],
+        [-0.28,-0.25,0.62,0.59,0.44,-0.52,-0.38,0.08,1,0.52],
+        [0.21,0.19,0.82,0.79,-0.18,-0.61,-0.71,0.25,0.52,1],
+      ];
+      return +(base[i][j]+(Math.random()-0.5)*0.06).toFixed(2);
+    }));
+    return m;
+  });
+  useEffect(()=>{
+    const cv=ref.current; if(!cv)return;
+    const ctx=cv.getContext('2d')!;
+    const W=cv.width,H=cv.height,n=assets.length;
+    const lw=32, cell=(W-lw)/(n+0.5), cellH=(H-lw)/(n+0.5);
+    ctx.clearRect(0,0,W,H); ctx.fillStyle='#050813'; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<n;i++){
+      for(let j=0;j<n;j++){
+        const v=mat[i][j];
+        const t=(v+1)/2;
+        const r=Math.round(t<0.5?t*2*180:180+(t*2-1)*75);
+        const g=Math.round(t<0.5?t*2*180:255);
+        const b=Math.round(t<0.5?255-(t*2)*220:100-(t*2-1)*80);
+        ctx.fillStyle=`rgba(${r},${g},${b},0.82)`;
+        ctx.fillRect(lw+j*cell+1,lw+i*cellH+1,cell-2,cellH-2);
+        ctx.fillStyle=Math.abs(v)>0.5?'rgba(0,0,0,0.7)':'rgba(255,255,255,0.7)'; ctx.font='7px monospace';
+        ctx.fillText(v.toFixed(2),lw+j*cell+3,lw+i*cellH+cellH*0.65);
+      }
+      ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.font='7.5px monospace';
+      ctx.fillText(assets[i],1,lw+i*cellH+cellH*0.65);
+      ctx.fillText(assets[i],lw+i*cell+2,lw-4);
+    }
+  });
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#050813',border:'1px solid #00e5ff28'}}>
+      <div style={{display:'flex',justifyContent:'space-between',padding:'3px 7px',borderBottom:'1px solid #00e5ff14',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#00e5ff',letterSpacing:'0.22em'}}>CORRELATION MATRIX · 30d ROLLING</span>
+        <span className="font-mono" style={{fontSize:7.5,color:'rgba(255,255,255,0.35)'}}>GREEN = pos · RED = neg · WHITE = neutral</span>
+      </div>
+      <canvas ref={ref} width={480} height={180} style={{width:'100%',flex:1,display:'block'}} />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 9 — YIELD CURVE
+   ══════════════════════════════════════════════════════════════════ */
+function WYieldCurve() {
+  const ref=useRef<HTMLCanvasElement>(null);
+  const tenors=['1M','3M','6M','1Y','2Y','3Y','5Y','7Y','10Y','20Y','30Y'];
+  const [ylds]=useState(()=>[5.32,5.28,5.21,5.04,4.82,4.75,4.48,4.45,4.43,4.61,4.72]);
+  const [prev]=useState(()=>[5.28,5.25,5.18,5.01,4.88,4.79,4.52,4.49,4.47,4.64,4.75]);
+  useEffect(()=>{
+    const cv=ref.current; if(!cv)return;
+    const ctx=cv.getContext('2d')!;
+    const W=cv.width,H=cv.height,PT=14,PB=22,PL=38,PR=8;
+    const pW=W-PL-PR,pH=H-PT-PB;
+    const lo=Math.min(...ylds,...prev)-0.1, hi=Math.max(...ylds,...prev)+0.1, rng=hi-lo;
+    const toY=(v:number)=>PT+(1-(v-lo)/rng)*pH;
+    const toX=(i:number)=>PL+(i/(tenors.length-1))*pW;
+    ctx.clearRect(0,0,W,H); ctx.fillStyle='#070a05'; ctx.fillRect(0,0,W,H);
+    // grid
+    for(let i=0;i<=4;i++){
+      const y=PT+(i/4)*pH; const v=hi-(i/4)*rng;
+      ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(PL,y); ctx.lineTo(W-PR,y); ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='7.5px monospace';
+      ctx.fillText(v.toFixed(2)+'%',1,y+3);
+    }
+    // inversion zone
+    const inv=ylds[4]>ylds[8];
+    if(inv){ ctx.fillStyle='rgba(255,26,107,0.07)'; ctx.fillRect(PL,PT,pW,pH); }
+    // previous curve (dashed)
+    ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    prev.forEach((v,i)=>{ if(i===0)ctx.moveTo(toX(i),toY(v)); else ctx.lineTo(toX(i),toY(v)); }); ctx.stroke(); ctx.setLineDash([]);
+    // current curve
+    const grad=ctx.createLinearGradient(PL,0,W-PR,0);
+    grad.addColorStop(0,'#ff1a6b'); grad.addColorStop(0.5,'#ffb300'); grad.addColorStop(1,'#00d084');
+    ctx.beginPath(); ctx.strokeStyle=grad; ctx.lineWidth=2;
+    ylds.forEach((v,i)=>{ if(i===0)ctx.moveTo(toX(i),toY(v)); else ctx.lineTo(toX(i),toY(v)); }); ctx.stroke();
+    ylds.forEach((v,i)=>{
+      ctx.beginPath(); ctx.arc(toX(i),toY(v),3,0,Math.PI*2);
+      ctx.fillStyle='#ffb300'; ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.font='7px monospace';
+      ctx.fillText(tenors[i],toX(i)-8,H-4);
+    });
+    if(inv){ ctx.fillStyle='#ff1a6b'; ctx.font='bold 9px monospace'; ctx.fillText('⚠ 2Y>10Y INVERSION',PL+4,PT+12); }
+  });
+  const spread2_10=(ylds[4]-ylds[8]).toFixed(2);
+  const inv=+spread2_10>0;
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#070a05',border:'1px solid #ffb30028'}}>
+      <div style={{display:'flex',justifyContent:'space-between',padding:'3px 7px',borderBottom:'1px solid #ffb30018',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#ffb300',letterSpacing:'0.22em'}}>US TREASURY YIELD CURVE</span>
+        <div style={{display:'flex',gap:10}}>
+          <span className="font-mono" style={{fontSize:8,color:inv?'#ff1a6b':'#00d084'}}>2Y-10Y {inv?'+':'−'}{Math.abs(+spread2_10).toFixed(2)}%</span>
+          <span className="font-mono" style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>10Y {ylds[8].toFixed(2)}%</span>
+          <span className="font-mono" style={{fontSize:8,color:'rgba(255,255,255,0.4)'}}>30Y {ylds[10].toFixed(2)}%</span>
+        </div>
+      </div>
+      <canvas ref={ref} width={480} height={160} style={{width:'100%',flex:1,display:'block'}} />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WIDGET 10 — COT POSITIONING (CFTC)
+   ══════════════════════════════════════════════════════════════════ */
+function WCotPositioning() {
+  const [rows]=useState(()=>[
+    {asset:'BTC',     netSpec:+42800, chg:+3200,  pctile:78, extreme:false, bull:true},
+    {asset:'GOLD',    netSpec:+186000,chg:-8400,  pctile:82, extreme:true,  bull:true},
+    {asset:'CRUDE',   netSpec:+64200, chg:+1100,  pctile:55, extreme:false, bull:true},
+    {asset:'EUR',     netSpec:-38400, chg:-4200,  pctile:24, extreme:false, bull:false},
+    {asset:'JPY',     netSpec:-184000,chg:-12000, pctile:8,  extreme:true,  bull:false},
+    {asset:'SPX E-M', netSpec:+298000,chg:+18000, pctile:91, extreme:true,  bull:true},
+    {asset:'NAS100',  netSpec:+186000,chg:+9200,  pctile:88, extreme:true,  bull:true},
+    {asset:'T-BONDS', netSpec:-121000,chg:-6800,  pctile:12, extreme:true,  bull:false},
+    {asset:'COPPER',  netSpec:+28400, chg:+2100,  pctile:62, extreme:false, bull:true},
+    {asset:'SILVER',  netSpec:+14200, chg:-1400,  pctile:58, extreme:false, bull:true},
+  ]);
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'#080b06',border:'1px solid #c8fb4e28'}}>
+      <div style={{display:'flex',justifyContent:'space-between',padding:'3px 7px',borderBottom:'1px solid #c8fb4e14',flexShrink:0}}>
+        <span className="hud-label" style={{fontSize:8,color:'#c8fb4e',letterSpacing:'0.22em'}}>CFTC COT · NET SPECULATOR POSITIONING</span>
+        <span className="font-mono" style={{fontSize:7.5,color:'rgba(255,255,255,0.35)'}}>PCTILE = 3yr historical rank</span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'56px 74px 52px 48px 1fr',padding:'2px 7px',borderBottom:'1px solid rgba(255,255,255,0.04)',flexShrink:0}}>
+        {['ASSET','NET SPEC','WK CHG','PCTILE','POSITIONING BAR'].map(h=><span key={h} className="hud-label" style={{fontSize:6.5,color:'rgba(255,255,255,0.28)',letterSpacing:'0.08em'}}>{h}</span>)}
+      </div>
+      <div style={{flex:1,overflowY:'auto'}} className="nx-scroll">
+        {rows.map((r,i)=>(
+          <div key={i} style={{padding:'2.5px 7px',borderBottom:'1px dashed rgba(255,255,255,0.04)',background:r.extreme?'rgba(255,179,0,0.04)':'transparent'}}>
+            <div style={{display:'grid',gridTemplateColumns:'56px 74px 52px 48px 1fr',alignItems:'center'}}>
+              <span className="font-mono" style={{fontSize:9,color:'#c8fb4e'}}>{r.asset}</span>
+              <span className="font-mono" style={{fontSize:9,color:r.bull?'#00d084':'#ff1a6b',fontWeight:600}}>{r.netSpec>0?'+':''}{(r.netSpec/1000).toFixed(1)}K</span>
+              <span className="font-mono" style={{fontSize:8,color:r.chg>0?'#00d08499':'#ff1a6b99'}}>{r.chg>0?'+':''}{(r.chg/1000).toFixed(1)}K</span>
+              <div style={{display:'flex',alignItems:'center',gap:3}}>
+                <span className="font-mono" style={{fontSize:9,color:r.pctile>80?'#ff1a6b':r.pctile<20?'#ff1a6b':'rgba(255,255,255,0.6)',fontWeight:r.extreme?700:400}}>{r.pctile}%</span>
+                {r.extreme&&<span className="hud-label" style={{fontSize:6.5,color:'#ffb300'}}>EXT</span>}
+              </div>
+              <div style={{height:5,background:'rgba(255,255,255,0.07)',position:'relative'}}>
+                <div style={{position:'absolute',top:0,left:`${50-(r.pctile/2)}%`,height:'100%',width:`${r.pctile/2}%`,background:r.bull?'#00d08488':'#ff1a6b88'}} />
+                <div style={{position:'absolute',top:0,left:'50%',width:1,height:'100%',background:'rgba(255,255,255,0.3)'}} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+

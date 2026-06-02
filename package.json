@@ -1,0 +1,93 @@
+{
+  "name": "jarvis-ops-os",
+  "private": true,
+  "version": "1.0.0",
+  "description": "JARVIS Operations OS — AI-powered desktop command centre",
+  "main": "dist-electron/main.js",
+  "author": "JARVIS Operator",
+  "scripts": {
+    "dev:vite": "vite",
+    "dev:electron": "tsc -p electron/tsconfig.json && electron .",
+    "build": "tsc -p electron/tsconfig.json && vite build",
+    "build:win": "npm run build && electron-builder --win --x64",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux",
+    "start": "electron ."
+  },
+  "build": {
+    "appId": "com.jarvis.ops-os",
+    "productName": "JARVIS Operations OS",
+    "copyright": "JARVIS Operator",
+    "directories": {
+      "output": "release",
+      "buildResources": "build-assets"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "mt5_bridge/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "mt5_bridge",
+        "to": "mt5_bridge",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build-assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowDirChange": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "JARVIS",
+      "installerIcon": "build-assets/icon.ico",
+      "uninstallerIcon": "build-assets/icon.ico",
+      "installerSidebar": "build-assets/installer-sidebar.bmp",
+      "license": "build-assets/LICENSE.txt",
+      "include": "build-assets/installer.nsh"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build-assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build-assets/icon.png",
+      "category": "Utility"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "lightweight-charts": "^5.2.0",
+    "node-cron": "^4.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^31.7.7",
+    "electron-builder": "^26.8.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.4"
+  }
+}
