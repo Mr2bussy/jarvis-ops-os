@@ -17,6 +17,7 @@ export default defineConfig({
         'electron/config/**',
         'src/lib/extract-json.ts',
         'src/lib/claude.ts',
+        'src/lib/trading-math.ts',
       ],
       thresholds: { lines: 80, functions: 80, branches: 70 },
     },

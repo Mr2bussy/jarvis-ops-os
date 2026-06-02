@@ -4,6 +4,7 @@
  * Provides real OHLCV, order book, CVD, funding rates and 24hr tickers.
  */
 import { useState, useEffect, useRef } from 'react';
+import { fmtCountdown, yyyymm, pearson, toReturns, deribitDte } from './trading-math';
 
 const B = 'https://api.binance.com/api/v3';
 const BF = 'https://fapi.binance.com/fapi/v1';
@@ -67,14 +68,6 @@ export interface LiveTicker {
 }
 
 /* ── Utility: format countdown from epoch ms ─────────────────────── */
-function fmtCountdown(epochMs: number): string {
-  const diff = epochMs - Date.now();
-  if (diff < 0) return '--';
-  const h = Math.floor(diff / 3_600_000);
-  const m = Math.floor((diff % 3_600_000) / 60_000);
-  return `${h}h${String(m).padStart(2, '0')}m`;
-}
-
 /* ══════════════════════════════════════════════════════════════════
    HOOK 1 — Candlestick (OHLCV) data
    ══════════════════════════════════════════════════════════════════ */
@@ -460,31 +453,6 @@ export interface DeribitOptionsState {
   status: DataStatus;
 }
 
-function deribitDte(expStr: string): number {
-  // e.g. "31MAY25" or "1JAN26"
-  const MONTHS: Record<string, number> = {
-    JAN: 0,
-    FEB: 1,
-    MAR: 2,
-    APR: 3,
-    MAY: 4,
-    JUN: 5,
-    JUL: 6,
-    AUG: 7,
-    SEP: 8,
-    OCT: 9,
-    NOV: 10,
-    DEC: 11,
-  };
-  const numLen = expStr.match(/^\d+/)?.[0].length ?? 0;
-  const day = +expStr.slice(0, numLen);
-  const monthStr = expStr.slice(numLen, numLen + 3);
-  const yearSuffix = expStr.slice(numLen + 3);
-  const year = 2000 + +yearSuffix;
-  const exp = new Date(year, MONTHS[monthStr] ?? 0, day, 8, 0, 0);
-  return Math.max(0, (exp.getTime() - Date.now()) / 86_400_000);
-}
-
 const EMPTY_DERIBIT: DeribitOptionsState = {
   gexStrikes: [],
   volSurface: [],
@@ -637,10 +605,6 @@ function parseYieldXml(xml: string, fallback: number[]): number[] {
   });
 }
 
-function yyyymm(date: Date): string {
-  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
 export function useTreasuryYieldCurve() {
   const [state, setState] = useState<YieldCurveState>({
     current: YIELD_FALLBACK,
@@ -760,30 +724,6 @@ export function useBinanceLiquidityMap(symbol = 'BTCUSDT') {
    HOOK 11 — Binance 30d Daily Returns → Correlation Matrix
    ══════════════════════════════════════════════════════════════════ */
 const CORR_ASSETS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK', 'DOGE'];
-
-function pearson(a: number[], b: number[]): number {
-  const n = Math.min(a.length, b.length);
-  if (n < 3) return 0;
-  const mA = a.slice(0, n).reduce((s, v) => s + v, 0) / n;
-  const mB = b.slice(0, n).reduce((s, v) => s + v, 0) / n;
-  let num = 0,
-    dA = 0,
-    dB = 0;
-  for (let i = 0; i < n; i++) {
-    const da = a[i] - mA,
-      db = b[i] - mB;
-    num += da * db;
-    dA += da * da;
-    dB += db * db;
-  }
-  return dA * dB > 0 ? +(num / Math.sqrt(dA * dB)).toFixed(2) : 0;
-}
-
-function toReturns(closes: number[]): number[] {
-  const r: number[] = [];
-  for (let i = 1; i < closes.length; i++) r.push(closes[i] / closes[i - 1] - 1);
-  return r;
-}
 
 export function useBinanceCorrelation() {
   const [state, setState] = useState<{ assets: string[]; matrix: number[][]; status: DataStatus }>({
