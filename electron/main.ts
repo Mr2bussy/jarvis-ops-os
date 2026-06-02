@@ -13,6 +13,7 @@ import {
   ReadFilePath,
   Mt5Payload,
   ConfigSetKey,
+  ComposioExecute,
 } from './security/ipc';
 import { detectProviderFrom, compressSystem, compressMsgs } from './ai/router';
 import { openAICompatComplete } from './ai/providers';
@@ -26,6 +27,14 @@ import {
   setAdvancedMode,
 } from './config/store';
 import { getSystemMetrics } from './system/metrics';
+import {
+  hasComposio,
+  listCatalog,
+  executeAction,
+  listConnections,
+  groupIntoCategories,
+  resetComposioClient,
+} from './integrations/composio';
 
 // â”€â”€ Chromium flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.commandLine.appendSwitch('enable-speech-dispatcher');
@@ -63,6 +72,7 @@ ipcMain.handle('config:setKey', async (_evt, raw: unknown) => {
     process.env.ANTHROPIC_API_KEY = value;
     client = null;
   }
+  if (name === 'COMPOSIO_API_KEY') resetComposioClient();
   if (name === 'GEMINI_API_KEY') process.env.GEMINI_API_KEY = value;
   if (name === 'GITHUB_TOKEN') process.env.GITHUB_TOKEN = value;
   if (name === 'DASHSCOPE_API_KEY') process.env.DASHSCOPE_API_KEY = value;
@@ -114,6 +124,24 @@ function pushActivity(who: string, action: string, target: string) {
   if (activityRing.length > 200) activityRing.shift();
 }
 ipcMain.handle('jarvis:recent-activity', () => activityRing.slice(-50).reverse());
+
+// â”€â”€ Composio integrations (live catalog + action execution; needs COMPOSIO_API_KEY) â”€â”€
+ipcMain.handle('composio:has', () => hasComposio());
+ipcMain.handle('composio:catalog', async () => {
+  const apps = await listCatalog();
+  pushActivity('COMPOSIO', 'CATALOG', `${apps.length} apps`);
+  return { apps, byCategory: groupIntoCategories(apps) };
+});
+ipcMain.handle('composio:execute', async (_e, raw: unknown) => {
+  const p = validate(ComposioExecute, raw);
+  pushActivity('COMPOSIO', 'EXEC', p.slug);
+  return executeAction(p.slug, {
+    arguments: p.arguments,
+    userId: p.userId,
+    connectedAccountId: p.connectedAccountId,
+  });
+});
+ipcMain.handle('composio:connections', async () => listConnections());
 
 // â”€â”€ Paths & isDev â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const distIndex = path.join(__dirname, '..', 'dist', 'index.html');

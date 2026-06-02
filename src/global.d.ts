@@ -36,6 +36,8 @@ export type AppEntry = {
 
 export type ActivityEntry = { ts: number; who: string; action: string; target: string };
 
+export type ComposioApp = { slug: string; name: string; categories: string[] };
+
 declare global {
   interface Window {
     jarvisBridge: {
@@ -205,6 +207,20 @@ declare global {
 
       // Web search (P3)
       searchWeb: (query: string) => Promise<{ title: string; url: string; snippet: string }[]>;
+
+      // Composio integrations
+      composio: {
+        has: () => Promise<boolean>;
+        catalog: () => Promise<{ apps: ComposioApp[]; byCategory: Record<string, ComposioApp[]> }>;
+        execute: (payload: {
+          slug: string;
+          arguments?: Record<string, unknown>;
+          userId?: string;
+          connectedAccountId?: string;
+        }) => Promise<unknown>;
+        connections: () => Promise<unknown>;
+      };
+
       shell: {
         openExternal: (url: string) => Promise<boolean>;
       };

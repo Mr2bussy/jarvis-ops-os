@@ -51,3 +51,11 @@ export const ConfigSetKey = z.object({
   name: z.string().min(1).max(128),
   value: z.string().max(20_000),
 });
+
+/** `composio:execute` — run a Composio tool/action for a connected account. */
+export const ComposioExecute = z.object({
+  slug: z.string().min(1).max(128),
+  arguments: z.record(z.string(), z.unknown()).optional(),
+  userId: z.string().max(128).optional(),
+  connectedAccountId: z.string().max(128).optional(),
+});

@@ -144,6 +144,19 @@ contextBridge.exposeInMainWorld('jarvisBridge', {
   // Web search (P3)
   searchWeb: (query: string) => ipcRenderer.invoke('search:web', { query }),
 
+  // Composio integrations (live catalog + action execution)
+  composio: {
+    has: () => ipcRenderer.invoke('composio:has'),
+    catalog: () => ipcRenderer.invoke('composio:catalog'),
+    execute: (payload: {
+      slug: string;
+      arguments?: Record<string, unknown>;
+      userId?: string;
+      connectedAccountId?: string;
+    }) => ipcRenderer.invoke('composio:execute', payload),
+    connections: () => ipcRenderer.invoke('composio:connections'),
+  },
+
   // Shell utilities
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
