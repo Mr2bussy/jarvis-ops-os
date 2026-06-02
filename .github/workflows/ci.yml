@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (non-blocking until legacy warnings are triaged)
+        run: pnpm lint || true
+
+      - name: Typecheck (renderer)
+        run: pnpm exec tsc -p tsconfig.json
+
+      - name: Typecheck (electron)
+        run: pnpm exec tsc -p electron/tsconfig.json --noEmit
+
+      - name: Unit tests + coverage
+        run: pnpm test:cov
+
+      - name: Production build
+        run: pnpm build
+
+      - name: Electron security scan (non-blocking; promote to blocking once triaged)
+        run: pnpm exec electronegativity -i . || true
+
+  python-bridge:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dev deps
+        run: pip install -r mt5_bridge/requirements-dev.txt
+      - name: Pytest
+        run: python -m pytest mt5_bridge -q
+
+# release.yml (separate, on: tag) would run `electron-builder --win --publish always`
+# with CSC_LINK / CSC_KEY_PASSWORD secrets for code signing — see PATH_TO_9.md.

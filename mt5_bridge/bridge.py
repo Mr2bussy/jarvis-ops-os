@@ -26,11 +26,17 @@ Usage:
   python bridge.py 8080         (custom port)
 """
 
-import sys, json, threading, time, datetime, math, random
+import sys, os, hmac, json, threading, time, datetime, math, random
 from urllib.parse import urlparse, parse_qs
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 1234
+
+# Shared-secret auth. The Electron main process generates this token, sets it as
+# JARVIS_BRIDGE_TOKEN when it spawns the bridge, and sends it as the X-JARVIS-Token
+# header on every request. Enforce-if-set: when configured, requests without the
+# matching header get 401. Unset (manual standalone run) → open, but warns loudly.
+AUTH_TOKEN = os.environ.get("JARVIS_BRIDGE_TOKEN", "")
 
 try:
     import MetaTrader5 as mt5
@@ -130,6 +136,8 @@ def toggle_json(body: bytes):
     return {"ok": True, "armed": _armed}
 
 def close_all_json():
+    if not _armed:
+        return {"closed":0,"failed":0,"error":"SAFED — arm the expert before closing positions"}
     if not ensure_mt5(): return {"closed":0,"failed":0,"error":"MT5 not connected"}
     pos = mt5.positions_get()
     closed = failed = 0
@@ -307,15 +315,22 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type",  "application/json")
         self.send_header("Content-Length", len(body))
-        self.send_header("Access-Control-Allow-Origin",  "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # No CORS headers: the bridge is reached only by the Electron main process
+        # via Node fetch (not subject to the same-origin policy). Dropping the
+        # permissive "Access-Control-Allow-Origin: *" closes the browser-CSRF vector.
         self.end_headers()
         self.wfile.write(body)
+
+    def _authorized(self) -> bool:
+        if not AUTH_TOKEN:
+            return True  # standalone/manual run — see startup warning
+        return hmac.compare_digest(self.headers.get("X-JARVIS-Token", ""), AUTH_TOKEN)
 
     def do_OPTIONS(self): self.send_json(200,{})
 
     def do_GET(self):
+        if not self._authorized():
+            return self.send_json(401, {"error": "unauthorized"})
         parsed = urlparse(self.path)
         p = parsed.path.rstrip("/")
         qs = parse_qs(parsed.query)
@@ -360,6 +375,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(404,{"error":"unknown endpoint"})
 
     def do_POST(self):
+        if not self._authorized():
+            return self.send_json(401, {"error": "unauthorized"})
         p=self.path.split("?")[0].rstrip("/")
         length=int(self.headers.get("Content-Length",0))
         body=self.rfile.read(length) if length>0 else b""
@@ -378,6 +395,8 @@ def keepalive():
 
 if __name__ == "__main__":
     print(f"[JARVIS MT5 Bridge v2.0]  http://localhost:{PORT}/api/v1/")
+    if not AUTH_TOKEN:
+        print("[JARVIS MT5 Bridge] WARNING: running UNAUTHENTICATED (JARVIS_BRIDGE_TOKEN not set)")
     ensure_mt5()
     threading.Thread(target=keepalive, daemon=True).start()
     server = HTTPServer(("127.0.0.1", PORT), Handler)

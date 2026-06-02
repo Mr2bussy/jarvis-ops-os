@@ -1,0 +1,53 @@
+import { z } from 'zod';
+
+/**
+ * Validate an untrusted IPC payload against a zod schema. Throws a compact,
+ * caller-safe Error on failure (handlers either return {ok:false,err} or let it
+ * reject the IPC promise). Renderer input must never be trusted by shape alone —
+ * this is the type-confusion / abuse guard for the main-process boundary.
+ */
+export function validate<S extends z.ZodTypeAny>(schema: S, data: unknown): z.infer<S> {
+  const r = schema.safeParse(data);
+  if (!r.success) {
+    const first = r.error.issues[0];
+    const where = first?.path?.length ? first.path.join('.') : '(root)';
+    throw new Error(`IPC validation failed: ${where} — ${first?.message ?? 'invalid'}`);
+  }
+  return r.data;
+}
+
+const ChatMessage = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().max(100_000),
+});
+
+/** `jarvis:complete` — the main LLM entry point. */
+export const CompletePayload = z.object({
+  messages: z.array(ChatMessage).min(1).max(50),
+  system: z.string().max(20_000).optional(),
+  maxTokens: z.number().int().positive().max(8192).optional(),
+});
+
+/** `jarvis:write-file` — content capped to a sane 5 MB. */
+export const WriteFilePayload = z.object({
+  filePath: z.string().min(1).max(4096),
+  content: z.string().max(5_000_000),
+});
+
+/** `jarvis:read-file-content` — the path is the whole payload. */
+export const ReadFilePath = z.string().min(1).max(4096);
+
+/** `zeus:mt5` — bridge proxy. */
+export const Mt5Payload = z.object({
+  host: z.string().min(1).max(255),
+  port: z.number().int().min(1).max(65535),
+  endpoint: z.string().min(1).max(256),
+  method: z.enum(['GET', 'POST']).optional(),
+  body: z.unknown().optional(),
+});
+
+/** `config:setKey` — stores an API key / setting (value goes to safeStorage). */
+export const ConfigSetKey = z.object({
+  name: z.string().min(1).max(128),
+  value: z.string().max(20_000),
+});

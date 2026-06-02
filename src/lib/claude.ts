@@ -4,30 +4,37 @@
 
 import type { Briefing, BriefingItem } from '../data/os-data';
 import type { AccentName } from '../theme';
+import { extractJson } from './extract-json';
 
 export const LS = {
-  context:   'jarvis.context',
-  console:   'jarvis.console',
+  context: 'jarvis.context',
+  console: 'jarvis.console',
   briefings: 'jarvis.briefings.live',
-  runs:      'jarvis.workflows.run',
+  runs: 'jarvis.workflows.run',
 } as const;
 
 export function lsGet<T>(k: string, fallback: T): T {
-  try { const v = localStorage.getItem(k); return v ? (JSON.parse(v) as T) : fallback; }
-  catch { return fallback; }
+  try {
+    const v = localStorage.getItem(k);
+    return v ? (JSON.parse(v) as T) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 export function lsSet(k: string, v: unknown) {
-  try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* noop */ }
+  try {
+    localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    /* noop */
+  }
 }
 
-export const DEFAULT_CONTEXT =
-`Operator: ZAXCO (alias). German-speaking, based in Germany.
+export const DEFAULT_CONTEXT = `Operator: ZAXCO (alias). German-speaking, based in Germany.
 Interests: trading (crypto + DAX + FX), content creation (YouTube + X + IG + Twitch), software/automation, AI tooling.
 Stance: ambitious, builder mindset, wants leverage and edge. Prefers terse, high-signal answers.
 Language: reply in the same language the operator uses. Default to German if it's a mix.`;
 
-export const JARVIS_PERSONA =
-`You are JARVIS — the operations AI orchestrating ZAXCO's command bridge.
+export const JARVIS_PERSONA = `You are JARVIS — the operations AI orchestrating ZAXCO's command bridge.
 
 VOICE & STYLE
 - Calm, precise, slightly cinematic. Like a chief-of-staff who has already done the research.
@@ -45,16 +52,27 @@ CAPABILITIES
 ENVIRONMENT
 - You live inside a desktop "Operations OS" (Electron). You cannot actually execute code, trade, send emails, or access the operator's PC. The agent roster ("Scout Cell", "Trader Bot") is theatrical — narrate as if it exists, but when the operator asks for something that requires real execution, be honest: "I'd dispatch the [team] for this, but in this build I'll do the work directly in chat."`;
 
-export interface ChatMsg { role: 'user' | 'assistant'; content: string; }
+export interface ChatMsg {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
-export async function askJarvis(opts: { messages: ChatMsg[]; system?: string; maxTokens?: number }): Promise<string> {
+export async function askJarvis(opts: {
+  messages: ChatMsg[];
+  system?: string;
+  maxTokens?: number;
+}): Promise<string> {
   const context = lsGet(LS.context, DEFAULT_CONTEXT);
   const sys = (opts.system ? opts.system + '\n\n' : '') + JARVIS_PERSONA + '\n\nOPERATOR CONTEXT\n' + context;
   if (!window.jarvisBridge) {
     throw new Error('jarvisBridge not available — Electron preload missing.');
   }
   try {
-    return await window.jarvisBridge.complete({ messages: opts.messages, system: sys, maxTokens: opts.maxTokens });
+    return await window.jarvisBridge.complete({
+      messages: opts.messages,
+      system: sys,
+      maxTokens: opts.maxTokens,
+    });
   } catch (e: any) {
     throw new Error(e?.message || String(e));
   }
@@ -73,9 +91,11 @@ interface BriefingKindDef {
 
 export const BRIEFING_KINDS: Record<BriefingKindKey, BriefingKindDef> = {
   morning: {
-    label: 'Morning Intel', tag: 'MORNING INTEL', accent: 'cyan',
+    label: 'Morning Intel',
+    tag: 'MORNING INTEL',
+    accent: 'cyan',
     prompt: (extra) =>
-`Generate today's MORNING INTEL briefing for the operator.
+      `Generate today's MORNING INTEL briefing for the operator.
 Date context: ${new Date().toDateString()}.
 ${extra ? 'Operator focus today: ' + extra : ''}
 
@@ -92,9 +112,11 @@ Return JSON ONLY, no prose around it. Schema:
 3-5 items total. Items should be CONCRETE and DECISION-RELEVANT, not generic news. If you don't know real current events, invent plausible-but-clearly-flagged ones and prefix them with "Scenario:".`,
   },
   market: {
-    label: 'Market Brief', tag: 'MARKET BRIEF', accent: 'amber',
+    label: 'Market Brief',
+    tag: 'MARKET BRIEF',
+    accent: 'amber',
     prompt: (extra) =>
-`Generate a PRE-OPEN MARKET BRIEFING.
+      `Generate a PRE-OPEN MARKET BRIEFING.
 ${extra ? 'Specific focus: ' + extra : 'Focus: crypto majors (BTC, ETH, SOL), DAX, EURUSD.'}
 
 Return JSON ONLY:
@@ -110,9 +132,11 @@ Return JSON ONLY:
 3-5 items. Use realistic price levels but mark them "indicative" if you can't be current.`,
   },
   content: {
-    label: 'Content Brief', tag: 'CONTENT BRIEF', accent: 'violet',
+    label: 'Content Brief',
+    tag: 'CONTENT BRIEF',
+    accent: 'violet',
     prompt: (extra) =>
-`Generate a CONTENT PERFORMANCE BRIEFING for the past 24h across YouTube, X, Instagram, Twitch, Newsletter.
+      `Generate a CONTENT PERFORMANCE BRIEFING for the past 24h across YouTube, X, Instagram, Twitch, Newsletter.
 ${extra ? 'Specific focus: ' + extra : ''}
 
 Return JSON ONLY:
@@ -128,9 +152,11 @@ Return JSON ONLY:
 4-6 items. Invent plausible numbers but make them coherent. Mark hypotheticals with 'Scenario:' if needed.`,
   },
   custom: {
-    label: 'Custom Briefing', tag: 'CUSTOM BRIEF', accent: 'jade',
+    label: 'Custom Briefing',
+    tag: 'CUSTOM BRIEF',
+    accent: 'jade',
     prompt: (extra) =>
-`Generate a custom briefing for the operator on this topic:
+      `Generate a custom briefing for the operator on this topic:
 "${extra || 'operator did not specify — pick something useful given their context'}"
 
 Return JSON ONLY:
@@ -147,16 +173,6 @@ Return JSON ONLY:
   },
 };
 
-function extractJson(text: string): any | null {
-  if (!text) return null;
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = fenced ? fenced[1] : text;
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start === -1 || end === -1) return null;
-  try { return JSON.parse(candidate.slice(start, end + 1)); } catch { return null; }
-}
-
 export async function composeBriefing(kind: BriefingKindKey, extra?: string): Promise<Briefing> {
   const def = BRIEFING_KINDS[kind] || BRIEFING_KINDS.custom;
   const text = await askJarvis({
@@ -164,11 +180,14 @@ export async function composeBriefing(kind: BriefingKindKey, extra?: string): Pr
     system: 'You are JARVIS generating a structured briefing. Output ONLY valid JSON, no commentary.',
     maxTokens: 900,
   });
-  const data = extractJson(text);
+  const data = extractJson<any>(text);
   const time = new Date().toTimeString().slice(0, 5);
   if (!data) {
     return {
-      id: `BRF-${Date.now()}`, tag: def.tag, accent: def.accent, time,
+      id: `BRF-${Date.now()}`,
+      tag: def.tag,
+      accent: def.accent,
+      time,
       title: 'Briefing (raw)',
       blurb: "Couldn't parse a structured briefing — raw output below.",
       items: [{ tag: 'RAW', text: (text || '').slice(0, 600) }],
@@ -176,7 +195,10 @@ export async function composeBriefing(kind: BriefingKindKey, extra?: string): Pr
     };
   }
   return {
-    id: `BRF-${Date.now()}`, tag: def.tag, accent: def.accent, time,
+    id: `BRF-${Date.now()}`,
+    tag: def.tag,
+    accent: def.accent,
+    time,
     title: data.title || def.label,
     blurb: data.blurb || '',
     items: Array.isArray(data.items) ? (data.items as BriefingItem[]) : [],
@@ -188,9 +210,11 @@ export async function composeBriefing(kind: BriefingKindKey, extra?: string): Pr
 
 export async function runResearch(topic: string, context?: string): Promise<string> {
   return askJarvis({
-    messages: [{ role: 'user', content:
-`Run a research brief on: "${topic}"
-${context ? 'Operator\'s angle: ' + context : ''}
+    messages: [
+      {
+        role: 'user',
+        content: `Run a research brief on: "${topic}"
+${context ? "Operator's angle: " + context : ''}
 
 Deliver this exact structure (plain markdown is fine — no JSON needed):
 
@@ -207,16 +231,19 @@ Deliver this exact structure (plain markdown is fine — no JSON needed):
 3 concrete things the operator could do this week.
 
 ## Confidence
-A single line stating overall confidence (HIGH / MEDIUM / LOW) and why.`
-    }],
+A single line stating overall confidence (HIGH / MEDIUM / LOW) and why.`,
+      },
+    ],
     maxTokens: 900,
   });
 }
 
 export async function runContent(brief: string, channel: string): Promise<string> {
   return askJarvis({
-    messages: [{ role: 'user', content:
-`Draft 3 distinct ${channel} posts/drafts on this brief:
+    messages: [
+      {
+        role: 'user',
+        content: `Draft 3 distinct ${channel} posts/drafts on this brief:
 "${brief}"
 
 For each:
@@ -227,16 +254,19 @@ For each:
 - ${channel === 'Newsletter' ? 'Each draft = a subject line + 80-word body.' : ''}
 - ${channel === 'Twitch' ? 'Each draft = a stream title + thumbnail-style hook + 4-segment rundown.' : ''}
 
-Distinct angles for each draft. Concrete, not generic.`
-    }],
+Distinct angles for each draft. Concrete, not generic.`,
+      },
+    ],
     maxTokens: 900,
   });
 }
 
 export async function runPlanDay(tasks: string, context?: string): Promise<string> {
   return askJarvis({
-    messages: [{ role: 'user', content:
-`Plan today for the operator. Tasks/inputs:
+    messages: [
+      {
+        role: 'user',
+        content: `Plan today for the operator. Tasks/inputs:
 ${tasks}
 
 ${context ? "Today's context: " + context : ''}
@@ -254,18 +284,23 @@ Group deep work, batch shallow work, leave reactive windows.
 What to NOT do today, and why.
 
 ## End-of-day Check
-What "win" looks like by 22:00.`
-    }],
+What "win" looks like by 22:00.`,
+      },
+    ],
     maxTokens: 900,
   });
 }
 
-export interface ConsoleLine { who: 'OPERATOR' | 'JARVIS'; t: string; text: string; }
+export interface ConsoleLine {
+  who: 'OPERATOR' | 'JARVIS';
+  t: string;
+  text: string;
+}
 
 export async function chatWithJarvis(history: ConsoleLine[], newMessage: string): Promise<string> {
   const trimmed = history.slice(-12);
   const messages: ChatMsg[] = [
-    ...trimmed.map<ChatMsg>(m => ({ role: m.who === 'OPERATOR' ? 'user' : 'assistant', content: m.text })),
+    ...trimmed.map<ChatMsg>((m) => ({ role: m.who === 'OPERATOR' ? 'user' : 'assistant', content: m.text })),
     { role: 'user', content: newMessage },
   ];
   return askJarvis({ messages, maxTokens: 700 });

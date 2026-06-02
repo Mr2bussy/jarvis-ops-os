@@ -1,16 +1,38 @@
 export {};
 
 export type SysMetrics = {
-  host: string; platform: string; arch: string; release: string; uptime: number;
-  cpu_count: number; cpu_model: string; cpu_util: number; cpu_per_core: number[]; cpu_speed_mhz: number;
+  host: string;
+  platform: string;
+  arch: string;
+  release: string;
+  uptime: number;
+  cpu_count: number;
+  cpu_model: string;
+  cpu_util: number;
+  cpu_per_core: number[];
+  cpu_speed_mhz: number;
   load_avg: number[];
-  mem_total_gb: number; mem_used_gb: number; mem_pct: number;
-  disk_used_gb: number; disk_total_gb: number; disk_pct: number;
+  mem_total_gb: number;
+  mem_used_gb: number;
+  mem_pct: number;
+  disk_used_gb: number;
+  disk_total_gb: number;
+  disk_pct: number;
   disk_drives: { caption: string; used_gb: number; total_gb: number }[];
-  net_ifaces: number; user: string; home: string; ts: number;
+  net_ifaces: number;
+  user: string;
+  home: string;
+  ts: number;
 };
 
-export type AppEntry = { id: string; name: string; path: string; kind: 'exe'|'url'|'folder'|'cmd'; tag?: string; addedAt: number };
+export type AppEntry = {
+  id: string;
+  name: string;
+  path: string;
+  kind: 'exe' | 'url' | 'folder' | 'cmd';
+  tag?: string;
+  addedAt: number;
+};
 
 export type ActivityEntry = { ts: number; who: string; action: string; target: string };
 
@@ -30,75 +52,152 @@ declare global {
       onShortcut: (cb: (key: string) => void) => void;
 
       config: {
-        setKey:    (name: string, value: string) => Promise<boolean>;
-        getKey:    (name: string)                => Promise<string>;
-        hasKey:    (name: string)                => Promise<boolean>;
-        deleteKey: (name: string)                => Promise<boolean>;
-        getMt5:    ()                            => Promise<{ host: string; port: number }>;
-        setMt5:    (host: string, port: number)  => Promise<boolean>;
-        reloadKeys: ()                           => Promise<boolean>;
+        setKey: (name: string, value: string) => Promise<boolean>;
+        getKey: (name: string) => Promise<string>;
+        hasKey: (name: string) => Promise<boolean>;
+        deleteKey: (name: string) => Promise<boolean>;
+        getMt5: () => Promise<{ host: string; port: number }>;
+        setMt5: (host: string, port: number) => Promise<boolean>;
+        reloadKeys: () => Promise<boolean>;
+        getAdvancedMode: () => Promise<boolean>;
+        setAdvancedMode: (on: boolean) => Promise<boolean>;
       };
 
       startBridge: () => Promise<boolean>;
 
       appsList: () => Promise<AppEntry[]>;
-      appsAdd: (entry: { name: string; path: string; kind: 'exe'|'url'|'folder'|'cmd'; tag?: string }) => Promise<AppEntry>;
+      appsAdd: (entry: {
+        name: string;
+        path: string;
+        kind: 'exe' | 'url' | 'folder' | 'cmd';
+        tag?: string;
+      }) => Promise<AppEntry>;
       appsRemove: (id: string) => Promise<boolean>;
-      appsPick: (kind: 'exe'|'folder') => Promise<string | null>;
+      appsPick: (kind: 'exe' | 'folder') => Promise<string | null>;
       appsLaunch: (entry: AppEntry) => Promise<{ ok: boolean; err?: string }>;
       appsScanCommon: () => Promise<{ name: string; path: string }[]>;
 
-      workspace: () => Promise<{ agentsPath: string; skillsIndexPath: string; agentCount: number; skillsTotal: number; host: string; user: string; platform: string; home: string }>;
-      scanAgents: () => Promise<{ id: string; name: string; desc: string; tools: string[]; file: string; cat: string }[]>;
-      liveScan: () => Promise<{ total: number; byCategory: Record<string,number>; lastModTs: number; scanTs: number }>;
+      workspace: () => Promise<{
+        agentsPath: string;
+        skillsIndexPath: string;
+        agentCount: number;
+        skillsTotal: number;
+        host: string;
+        user: string;
+        platform: string;
+        home: string;
+      }>;
+      scanAgents: () => Promise<
+        { id: string; name: string; desc: string; tools: string[]; file: string; cat: string }[]
+      >;
+      liveScan: () => Promise<{
+        total: number;
+        byCategory: Record<string, number>;
+        lastModTs: number;
+        scanTs: number;
+      }>;
       rebuildIndex: () => Promise<{ total: number; entries: unknown[] } | null>;
       writeFile: (p: { filePath: string; content: string }) => Promise<{ ok: boolean; err?: string }>;
       readFileContent: (filePath: string) => Promise<{ ok: boolean; content: string; err?: string }>;
 
       zeusPing: (url: string) => Promise<{ ok: boolean; status: number; body?: string; err?: string }>;
-      mt5: (payload: { host: string; port: number; endpoint: string; method?: 'GET'|'POST'; body?: unknown }) =>
-        Promise<{ ok: boolean; status: number; data?: unknown; err?: string }>;
+      mt5: (payload: {
+        host: string;
+        port: number;
+        endpoint: string;
+        method?: 'GET' | 'POST';
+        body?: unknown;
+      }) => Promise<{ ok: boolean; status: number; data?: unknown; err?: string }>;
 
-      geminiComplete: (payload: { messages: { role: 'user'|'model'; text: string }[]; system?: string }) => Promise<string>;
+      geminiComplete: (payload: {
+        messages: { role: 'user' | 'model'; text: string }[];
+        system?: string;
+      }) => Promise<string>;
       geminiAudio: (payload: { audioBase64: string; mimeType: string; system?: string }) => Promise<string>;
       geminiTranscribe: (payload: { audioBase64: string; mimeType: string }) => Promise<string>;
       hasGemini: () => Promise<boolean>;
       voiceDiag: () => Promise<Record<string, unknown>>;
-      githubComplete: (payload: { messages: { role: 'user'|'assistant'|'system'; content: string }[]; system?: string; maxTokens?: number }) => Promise<string>;
+      githubComplete: (payload: {
+        messages: { role: 'user' | 'assistant' | 'system'; content: string }[];
+        system?: string;
+        maxTokens?: number;
+      }) => Promise<string>;
       hasGithub: () => Promise<boolean>;
-      qwenComplete: (payload: { messages: { role: 'user'|'assistant'|'system'; content: string }[]; system?: string; maxTokens?: number }) => Promise<string>;
+      qwenComplete: (payload: {
+        messages: { role: 'user' | 'assistant' | 'system'; content: string }[];
+        system?: string;
+        maxTokens?: number;
+      }) => Promise<string>;
       hasQwen: () => Promise<boolean>;
-      ollamaComplete: (payload: { messages: { role: 'user'|'assistant'|'system'; content: string }[]; system?: string; maxTokens?: number }) => Promise<string>;
+      ollamaComplete: (payload: {
+        messages: { role: 'user' | 'assistant' | 'system'; content: string }[];
+        system?: string;
+        maxTokens?: number;
+      }) => Promise<string>;
       hasOllama: () => Promise<boolean>;
       ollamaTranscribe: (payload: { audioBase64: string; mimeType: string }) => Promise<string>;
 
       // Console / Dev tools
-      consoleRun: (cmd: string) => Promise<string>;
+      consoleRun: (cmd: string) => Promise<{ ok: boolean; stdout?: string; stderr?: string; err?: string }>;
 
       // System Tools
       systemTools: {
-        openTool:   (toolId: string)  => Promise<void>;
-        getProcs:   ()                => Promise<unknown[]>;
-        clearTemp:  ()                => Promise<{ freed: number }>;
-        memReduce:  ()                => Promise<{ freed: number }>;
-        fileSearch: (query: string)   => Promise<string[]>;
-        netScan:    ()                => Promise<unknown[]>;
+        openTool: (toolId: string) => Promise<void>;
+        getProcs: () => Promise<unknown[]>;
+        clearTemp: () => Promise<{ freed: number }>;
+        memReduce: () => Promise<{ freed: number }>;
+        fileSearch: (query: string) => Promise<string[]>;
+        netScan: () => Promise<unknown[]>;
       };
 
       // Workflow Scheduler
-      workflowSchedule: (config: { id: string; expression: string; workflowId: string; workflowName: string; prompt: string; channel: string }) => Promise<{ ok: boolean; id?: string }>;
+      workflowSchedule: (config: {
+        id: string;
+        expression: string;
+        workflowId: string;
+        workflowName: string;
+        prompt: string;
+        channel: string;
+      }) => Promise<{ ok: boolean; id?: string }>;
       workflowCancel: (id: string) => Promise<boolean>;
-      workflowListScheduled: () => Promise<{ id: string; workflowId: string; workflowName: string; expression: string; runCount: number; lastRun?: number }[]>;
+      workflowListScheduled: () => Promise<
+        {
+          id: string;
+          workflowId: string;
+          workflowName: string;
+          expression: string;
+          runCount: number;
+          lastRun?: number;
+        }[]
+      >;
 
       // Provider live ping (A4)
       testProvider: (provider: string) => Promise<{ ok: boolean; status?: number; error?: string }>;
 
       // Social Media (B2)
-      postToX: (payload: { text: string; apiKey: string; apiSecret: string; accessToken: string; accessSecret: string }) => Promise<{ ok: boolean; id?: string; error?: string }>;
-      postToInstagram: (payload: { imageUrl: string; caption: string; accessToken: string; igUserId: string }) => Promise<{ ok: boolean; id?: string; error?: string }>;
+      postToX: (payload: {
+        text: string;
+        apiKey: string;
+        apiSecret: string;
+        accessToken: string;
+        accessSecret: string;
+      }) => Promise<{ ok: boolean; id?: string; error?: string }>;
+      postToInstagram: (payload: {
+        imageUrl: string;
+        caption: string;
+        accessToken: string;
+        igUserId: string;
+      }) => Promise<{ ok: boolean; id?: string; error?: string }>;
 
       // Streaming (P1)
-      completeStream: (payload: { messages: { role: 'user' | 'assistant'; content: string }[]; system?: string; maxTokens?: number; }, streamId: string) => Promise<string>;
+      completeStream: (
+        payload: {
+          messages: { role: 'user' | 'assistant'; content: string }[];
+          system?: string;
+          maxTokens?: number;
+        },
+        streamId: string,
+      ) => Promise<string>;
       onStreamChunk: (cb: (data: { id: string; text: string }) => void) => void;
       offStreamChunk: () => void;
       onStreamDone: (cb: (data: { id: string }) => void) => void;
