@@ -161,4 +161,45 @@ contextBridge.exposeInMainWorld('jarvisBridge', {
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
   },
+
+  harness: {
+    status: () => ipcRenderer.invoke('harness:status'),
+    run: (payload: { sessionId: string; message: string; verifierId?: string }) =>
+      ipcRenderer.invoke('harness:run', payload),
+    refine: (payload: { sessionId: string; evidence: string; lesson: string; skillName?: string }) =>
+      ipcRenderer.invoke('harness:refine', payload),
+    memorySearch: (query: string, limit?: number) =>
+      ipcRenderer.invoke('harness:memory-search', { query, limit }),
+    hitlPending: () => ipcRenderer.invoke('harness:hitl-pending'),
+    hitlResolve: (id: string, approved: boolean) =>
+      ipcRenderer.invoke('harness:hitl-resolve', { id, approved }),
+    benchSmoke: () => ipcRenderer.invoke('harness:bench-smoke'),
+    swarmPlan: (message: string) => ipcRenderer.invoke('harness:swarm-plan', { message }),
+    onHitlRequest: (
+      cb: (entry: {
+        id: string;
+        reason: string;
+        payload: Record<string, unknown>;
+        createdAt: string;
+      }) => void,
+    ) => {
+      const handler = (
+        _e: unknown,
+        entry: { id: string; reason: string; payload: Record<string, unknown>; createdAt: string },
+      ) => cb(entry);
+      ipcRenderer.on('harness:hitl-request', handler);
+      return () => ipcRenderer.removeListener('harness:hitl-request', handler);
+    },
+    weeklyRun: (useLlmCritic?: boolean) =>
+      ipcRenderer.invoke('harness:weekly-run', { useLlmCritic: Boolean(useLlmCritic) }),
+  },
+
+  gateway: {
+    status: () => ipcRenderer.invoke('gateway:status'),
+    configGet: () => ipcRenderer.invoke('gateway:config-get'),
+    configSet: (patch: Record<string, unknown>) => ipcRenderer.invoke('gateway:config-set', patch),
+    start: () => ipcRenderer.invoke('gateway:start'),
+    stop: () => ipcRenderer.invoke('gateway:stop'),
+    deliver: (platform: string, text: string) => ipcRenderer.invoke('gateway:deliver', { platform, text }),
+  },
 });

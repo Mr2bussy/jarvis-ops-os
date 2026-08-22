@@ -1,0 +1,112 @@
+{
+  "numTotalTestSuites": 8,
+  "numPassedTestSuites": 8,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 8,
+  "numPassedTests": 8,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1787408247759,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["bench G07 activity ring"],
+          "fullName": "bench G07 activity ring push appears in recent activity",
+          "status": "passed",
+          "title": "push appears in recent activity",
+          "duration": 2.4023999999999432,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["bench G11 path traversal"],
+          "fullName": "bench G11 path traversal rejects sibling prefix path on Windows",
+          "status": "passed",
+          "title": "rejects sibling prefix path on Windows",
+          "duration": 0.8037999999999101,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["bench G14 trading HITL"],
+          "fullName": "bench G14 trading HITL order endpoints require HITL when classified",
+          "status": "passed",
+          "title": "order endpoints require HITL when classified",
+          "duration": 0.581899999999905,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["bench G16 refine + snapshot"],
+          "fullName": "bench G16 refine + snapshot creates snapshot and skill metadata",
+          "status": "passed",
+          "title": "creates snapshot and skill metadata",
+          "duration": 14.072599999999966,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["bench G17 anti-early-victory"],
+          "fullName": "bench G17 anti-early-victory continues when verifier fails after done claim",
+          "status": "passed",
+          "title": "continues when verifier fails after done claim",
+          "duration": 0.6109999999998763,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["bench G17 anti-early-victory"],
+          "fullName": "bench G17 anti-early-victory detects done claims in assistant text",
+          "status": "passed",
+          "title": "detects done claims in assistant text",
+          "duration": 0.6705999999999221,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["harness smoke aggregate"],
+          "fullName": "harness smoke aggregate runs automated smoke cases with safety regression at 100",
+          "status": "passed",
+          "title": "runs automated smoke cases with safety regression at 100",
+          "duration": 28.219299999999976,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["scoring math"],
+          "fullName": "scoring math weights success heavily",
+          "status": "passed",
+          "title": "weights success heavily",
+          "duration": 0.5449999999998454,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1787408249812,
+      "endTime": 1787408249861.545,
+      "status": "passed",
+      "message": "",
+      "name": "C:/Users/Administrator/Desktop/master jarvis app project oggg/electron/harness/bench.test.ts"
+    }
+  ]
+}

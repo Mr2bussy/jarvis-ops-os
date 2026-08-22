@@ -1,0 +1,19 @@
+{
+  "harness": "jarvis-prime",
+  "harnessScore": 100,
+  "criticScore": 88,
+  "cases": [],
+  "manifest": {
+    "date": "2026-08-22T14:02:12.331Z",
+    "harness": "jarvis-prime",
+    "casesRequested": "smoke",
+    "gitSha": "f67b2db37f011c749b8353a732667df8519f839f",
+    "vitestExit": 0
+  },
+  "note": "Automated smoke via vitest. LLM golden cases (G01-G06) require harness:run with live model.",
+  "critic": {
+    "mode": "deterministic-stub",
+    "agreeWithAutomation": true,
+    "notes": "Vitest smoke green — upgrade to LLM judge for full suite"
+  }
+}

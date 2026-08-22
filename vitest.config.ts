@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     // Pure-logic unit tests run in Node; no DOM needed for the current suite.
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}', 'electron/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'electron/**/*.test.ts', 'electron/harness/bench.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

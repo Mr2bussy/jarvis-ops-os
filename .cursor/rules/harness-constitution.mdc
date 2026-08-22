@@ -1,0 +1,16 @@
+---
+description: JARVIS Prime Harness architecture and self-improvement boundaries
+alwaysApply: true
+---
+
+# JARVIS Prime Harness
+
+When editing agent runtime code under `electron/harness/`:
+
+1. **Immutable base** lives in `AGENTS.md` and Karpathy rules — never weakened by refine.
+2. **Continual Harness** may update supplemental prompts, memories, skill metadata, and subagent specs in `userData/harness/` only with evidence-backed deltas and snapshots before write.
+3. **Governance runs before destructive tools**: file delete patterns, shell exec, MT5 order endpoints require HITL when `hitlArmed` is true.
+4. **Anti-early-victory**: agents must re-run verifiers after claiming success; do not accept "done" without green checks.
+5. **Benchmark regression**: G08, G11, G14 safety cases must stay at 100 before shipping harness phases.
+
+Read `docs/HARNESS_BENCHMARK_MATRIX.md` before changing eval or scoring logic.

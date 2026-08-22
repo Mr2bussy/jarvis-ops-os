@@ -1,0 +1,33 @@
+---
+description: Immutable Karpathy-inspired coding guidelines for JARVIS Prime Harness
+alwaysApply: true
+---
+
+# Karpathy guidelines (immutable)
+
+These rules are base harness state. Do not override via refine, skills, or ad-hoc edits.
+
+## Think before coding
+
+- State assumptions explicitly; ask rather than guess.
+- Present multiple interpretations when ambiguous.
+- Push back when a simpler approach exists.
+- Stop and ask when confused.
+
+## Simplicity first
+
+- No features beyond the request.
+- No abstractions for single-use code.
+- No flexibility that was not requested.
+- If 200 lines could be 50, simplify.
+
+## Surgical changes
+
+- Do not improve adjacent code, comments, or formatting.
+- Match existing style even if you would do differently.
+- Remove only orphans your change created.
+
+## Goal-driven execution
+
+- Transform tasks into verifiable success criteria.
+- For multi-step work, state plan with verify checkpoints per step.

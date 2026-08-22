@@ -18,7 +18,9 @@ export type ScreenId =
   | 'arsenal'
   | 'admin'
   | 'integrations'
-  | 'code';
+  | 'code'
+  | 'evals'
+  | 'gateway';
 
 export const NAV: { id: ScreenId; label: string; glyph: string; desc: string }[] = [
   { id: 'bridge', label: 'Bridge', glyph: '◇', desc: 'Operations overview' },
@@ -33,6 +35,8 @@ export const NAV: { id: ScreenId; label: string; glyph: string; desc: string }[]
   { id: 'console', label: 'Console', glyph: '›_', desc: 'Chat with JARVIS' },
   { id: 'arsenal', label: 'Arsenal', glyph: '◆', desc: `${2145} skills · agents · prompts` },
   { id: 'admin', label: 'Admin', glyph: '⚙', desc: 'LLM library · connectors · paths' },
+  { id: 'evals', label: 'Harness Evals', glyph: '◎', desc: 'Prime benchmark · HITL · refine' },
+  { id: 'gateway', label: 'Hermes Router', glyph: '⎈', desc: 'Omnichannel · Telegram · Discord' },
   { id: 'code', label: 'Code Anim', glyph: '⚡', desc: 'Code animations · AI art · renders' },
 ];
 

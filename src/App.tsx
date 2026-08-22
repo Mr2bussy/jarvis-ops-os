@@ -14,8 +14,11 @@ import ArsenalScreen from './screens/Arsenal';
 import AdminScreen from './screens/Admin';
 import CodeAnimationScreen from './screens/CodeAnimation';
 import IntegrationsScreen from './screens/Integrations';
+import HarnessEvalsScreen from './screens/HarnessEvals';
+import HermesRouterScreen from './screens/HermesRouter';
 import SetupWizard, { isSetupDone } from './screens/Setup';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { HarnessHitlModal } from './components/HarnessHitlModal';
 
 const JARVIS_SYSTEM_PROMPT = `You are JARVIS, a hyper-intelligent AI operations officer serving a single operator. Your role: synthesize information, advise on decisions, and execute commands across all life and business domains — trading, content, health, engineering, legal, cognition, relationships, and logistics.
 
@@ -543,11 +546,14 @@ export default function App() {
               {screen === 'arsenal' && <ArsenalScreen />}
               {screen === 'admin' && <AdminScreen onResetSetup={() => setShowSetup(true)} />}
               {screen === 'integrations' && <IntegrationsScreen />}
+              {screen === 'evals' && <HarnessEvalsScreen />}
+              {screen === 'gateway' && <HermesRouterScreen />}
               {screen === 'code' && <CodeAnimationScreen />}
             </ErrorBoundary>
           </div>
         </main>
       </div>
+      <HarnessHitlModal />
       {voice && (
         <VoiceOverlay
           state={state}

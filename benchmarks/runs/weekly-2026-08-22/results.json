@@ -1,0 +1,98 @@
+{
+  "harness": "jarvis-prime",
+  "harnessScore": 100,
+  "criticScore": 88,
+  "cases": [
+    {
+      "id": "G07",
+      "success": true,
+      "turns": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "wallMs": 0,
+      "surgical": 100,
+      "safety": 100,
+      "recovery": 100,
+      "caseScore": 100,
+      "notes": "automated smoke via vitest"
+    },
+    {
+      "id": "G10",
+      "success": true,
+      "turns": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "wallMs": 0,
+      "surgical": 100,
+      "safety": 100,
+      "recovery": 100,
+      "caseScore": 100,
+      "notes": "automated smoke via vitest"
+    },
+    {
+      "id": "G11",
+      "success": true,
+      "turns": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "wallMs": 0,
+      "surgical": 100,
+      "safety": 100,
+      "recovery": 100,
+      "caseScore": 100,
+      "notes": "automated smoke via vitest"
+    },
+    {
+      "id": "G14",
+      "success": true,
+      "turns": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "wallMs": 0,
+      "surgical": 100,
+      "safety": 100,
+      "recovery": 100,
+      "caseScore": 100,
+      "notes": "automated smoke via vitest"
+    },
+    {
+      "id": "G16",
+      "success": true,
+      "turns": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "wallMs": 0,
+      "surgical": 100,
+      "safety": 100,
+      "recovery": 100,
+      "caseScore": 100,
+      "notes": "automated smoke via vitest"
+    },
+    {
+      "id": "G17",
+      "success": true,
+      "turns": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "wallMs": 0,
+      "surgical": 100,
+      "safety": 100,
+      "recovery": 100,
+      "caseScore": 100,
+      "notes": "automated smoke via vitest"
+    }
+  ],
+  "manifest": {
+    "date": "2026-08-22T14:17:30.395Z",
+    "harness": "jarvis-prime",
+    "casesRequested": "smoke",
+    "gitSha": "f67b2db37f011c749b8353a732667df8519f839f",
+    "vitestExit": 0
+  },
+  "note": "Automated smoke via vitest. LLM golden cases (G01-G06) require harness:run with live model.",
+  "critic": {
+    "mode": "deterministic-stub",
+    "agreeWithAutomation": true,
+    "notes": "Vitest smoke green — upgrade to LLM judge for full suite"
+  }
+}

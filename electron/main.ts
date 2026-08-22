@@ -35,6 +35,10 @@ import {
   groupIntoCategories,
   resetComposioClient,
 } from './integrations/composio';
+import { ActivityRing } from './activity-ring';
+import { JarvisPrimeHarness } from './harness/service';
+import { registerHarnessIpc, setHarnessInstance, getHarnessInstance } from './harness/ipc';
+import { initHermesRouter, registerGatewayIpc, getHermesRouter } from './gateway/ipc';
 
 // â”€â”€ Chromium flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.commandLine.appendSwitch('enable-speech-dispatcher');
@@ -111,19 +115,12 @@ ipcMain.handle('config:reload-keys', () => {
   return true;
 });
 
-// â”€â”€ Activity Ring Buffer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-interface ActivityEntry {
-  ts: number;
-  who: string;
-  action: string;
-  target: string;
-}
-const activityRing: ActivityEntry[] = [];
+// ── Activity Ring Buffer ─────────────────────────────────────────────────────
+const activityRing = new ActivityRing();
 function pushActivity(who: string, action: string, target: string) {
-  activityRing.push({ ts: Date.now(), who, action, target });
-  if (activityRing.length > 200) activityRing.shift();
+  activityRing.push(who, action, target);
 }
-ipcMain.handle('jarvis:recent-activity', () => activityRing.slice(-50).reverse());
+ipcMain.handle('jarvis:recent-activity', () => activityRing.recent(50));
 
 // â”€â”€ Composio integrations (live catalog + action execution; needs COMPOSIO_API_KEY) â”€â”€
 ipcMain.handle('composio:has', () => hasComposio());
@@ -1374,6 +1371,12 @@ function registerScheduledJob(meta: ScheduledJob): void {
           maxTokens: 800,
         });
         pushActivity('SCHEDULER', 'DONE', `${meta.workflowName}: ${result.slice(0, 60)}`);
+        const router = getHermesRouter();
+        if (router && meta.channel && meta.channel !== 'internal') {
+          const delivered = await router.deliver(meta.channel, result);
+          if (delivered.ok) pushActivity('HERMES-ROUTER', 'DELIVER', meta.channel);
+          else pushActivity('HERMES-ROUTER', 'ERR', delivered.err?.slice(0, 60) ?? 'deliver failed');
+        }
       } catch (e: any) {
         pushActivity('SCHEDULER', 'ERROR', String(e?.message || e).slice(0, 60));
       }
@@ -1566,6 +1569,87 @@ app.whenReady().then(() => {
     const v = getDecryptedKey(name);
     if (v) process.env[name] = v;
   }
+
+  registerHarnessIpc(ipcMain);
+  const harnessAllowedRoots = [
+    app.getPath('userData'),
+    app.getAppPath(),
+    process.env.JARVIS_AGENTS_PATH ?? '',
+    process.env.JARVIS_SKILLS_INDEX ? path.dirname(process.env.JARVIS_SKILLS_INDEX) : '',
+  ].filter(Boolean);
+
+  const harness = new JarvisPrimeHarness({
+    userDataDir: app.getPath('userData'),
+    workspaceRoot: app.getAppPath(),
+    hitlArmed: true,
+    hitlTimeoutMs: 120_000,
+    pushActivity,
+    onHitlRequest: (entry) => {
+      mainWin?.webContents.send('harness:hitl-request', entry);
+      pushActivity('HARNESS', 'HITL-WAIT', entry.id);
+    },
+    toolDeps: {
+      allowedRoots: harnessAllowedRoots,
+      mt5Call: async (endpoint, method, body) => {
+        const host = getDecryptedKey('MT5_HOST') || 'localhost';
+        const port = parseInt(getDecryptedKey('MT5_PORT') || '1234', 10);
+        const safeHost = host.replace(/[^a-zA-Z0-9._-]/g, '');
+        const url = `http://${safeHost}:${port}/api/v1/${endpoint}`;
+        try {
+          const init: RequestInit = {
+            method: method ?? 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              'X-JARVIS-Token': ensureBridgeToken(),
+            },
+            signal: AbortSignal.timeout(5000),
+          };
+          if (body !== undefined) init.body = JSON.stringify(body);
+          const r = await fetch(url, init);
+          const txt = await r.text();
+          let data: unknown;
+          try {
+            data = JSON.parse(txt);
+          } catch {
+            data = txt;
+          }
+          return { ok: r.ok, data, err: r.ok ? undefined : String(data) };
+        } catch (err: unknown) {
+          return { ok: false, err: String((err as Error)?.message ?? err) };
+        }
+      },
+    },
+    complete: async (input) =>
+      routedComplete({
+        messages: input.messages.filter((m) => m.role !== 'system') as {
+          role: 'user' | 'assistant';
+          content: string;
+        }[],
+        system: input.system,
+        maxTokens: input.maxTokens,
+      }),
+  });
+  setHarnessInstance(harness);
+  pushActivity('HARNESS', 'INIT', 'jarvis-prime');
+
+  registerGatewayIpc(ipcMain);
+  const hermesRouter = initHermesRouter(app.getPath('userData'), pushActivity);
+  hermesRouter.setMessageHandler(async (msg) => {
+    const h = getHarnessInstance();
+    if (!h) return 'JARVIS Prime harness offline.';
+    try {
+      const turns = await h.runSession({
+        sessionId: `${msg.platform}-${msg.userId}`,
+        message: msg.text,
+      });
+      const last = turns[turns.length - 1];
+      return last?.assistantText?.slice(0, 4000) ?? 'Done.';
+    } catch (e: unknown) {
+      return `Error: ${String((e as Error)?.message ?? e).slice(0, 500)}`;
+    }
+  });
+
   createWindow();
   tryStartMt5Bridge();
   loadScheduledJobs();
@@ -1592,6 +1676,34 @@ app.whenReady().then(() => {
         mainWin?.webContents.send('briefing:new', { type: 'MORNING_AUTO', text: brief, ts: Date.now() });
       } catch (e: any) {
         pushActivity('JARVIS', 'ERROR', `Morning briefing: ${String(e?.message ?? e).slice(0, 50)}`);
+      }
+    },
+    { timezone: 'UTC' },
+  );
+
+  // Weekly harness eval — Monday 06:00 UTC (Phase 7)
+  cron.schedule(
+    '0 6 * * 1',
+    async () => {
+      const h = getHarnessInstance();
+      if (!h) return;
+      pushActivity('HARNESS', 'WEEKLY', 'eval start');
+      try {
+        const out = await h.runWeeklyEval(false);
+        pushActivity(
+          'HARNESS',
+          'WEEKLY',
+          `score ${out.run.harnessScore.toFixed(0)} MVP:${out.gates.mvp ? 'Y' : 'N'}`,
+        );
+        const router = getHermesRouter();
+        if (router && out.gates.mvp) {
+          await router.deliver(
+            'telegram',
+            `JARVIS weekly eval: harness ${out.run.harnessScore.toFixed(1)} critic ${out.criticScore.toFixed(1)}`,
+          );
+        }
+      } catch (e: unknown) {
+        pushActivity('HARNESS', 'ERROR', String((e as Error)?.message ?? e).slice(0, 50));
       }
     },
     { timezone: 'UTC' },

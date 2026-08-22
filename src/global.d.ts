@@ -224,6 +224,50 @@ declare global {
       shell: {
         openExternal: (url: string) => Promise<boolean>;
       };
+
+      harness: {
+        status: () => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        run: (payload: { sessionId: string; message: string; verifierId?: string }) => Promise<{
+          ok: boolean;
+          turns?: unknown[];
+          err?: string;
+        }>;
+        refine: (payload: {
+          sessionId: string;
+          evidence: string;
+          lesson: string;
+          skillName?: string;
+        }) => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        memorySearch: (
+          query: string,
+          limit?: number,
+        ) => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        hitlPending: () => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        hitlResolve: (
+          id: string,
+          approved: boolean,
+        ) => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        benchSmoke: () => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        swarmPlan: (message: string) => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        onHitlRequest?: (
+          cb: (entry: {
+            id: string;
+            reason: string;
+            payload: Record<string, unknown>;
+            createdAt: string;
+          }) => void,
+        ) => (() => void) | void;
+        weeklyRun: (useLlmCritic?: boolean) => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+      };
+
+      gateway: {
+        status: () => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        configGet: () => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        configSet: (patch: Record<string, unknown>) => Promise<{ ok: boolean; data?: unknown; err?: string }>;
+        start: () => Promise<{ ok: boolean; err?: string }>;
+        stop: () => Promise<{ ok: boolean; err?: string }>;
+        deliver: (platform: string, text: string) => Promise<{ ok: boolean; err?: string }>;
+      };
     };
   }
 }
