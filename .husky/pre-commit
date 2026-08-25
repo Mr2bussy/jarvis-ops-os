@@ -1,1 +1,9 @@
+# Credentials must be caught before lint-staged rewrites the staged blobs, and a
+# rejected commit is far cheaper than a rotated key. Plain node, no dependency -
+# the gate works on a fresh clone before `pnpm install` has ever run.
+#
+# D1 tree hygiene runs first so a 774 MB vendor dump never reaches the secret scan.
+node scripts/doctor.mjs --tree || exit 1
+node scripts/scan-secrets.mjs --fail-on-new || exit 1
+
 pnpm exec lint-staged

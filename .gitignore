@@ -1,4 +1,12 @@
 node_modules
+node_modules.partial.bak
+node_modules.partial.bak.disabled
+node_modules.partial.bak*/
+.compare/
+_compare/
+*.bak
+*.bak2
+*.bak3
 dist
 dist-electron
 release
@@ -9,5 +17,14 @@ release
 
 # test / coverage artifacts
 coverage
+.stryker-tmp
+reports/mutation
 .pytest_cache
 **/__pycache__/
+
+# playwright e2e - report, per-run output and the throwaway Electron profile
+# (e2e/.artifacts/user-data) the specs launch against
+playwright-report/
+test-results/
+e2e/.artifacts/
+reports/
