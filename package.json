@@ -45,7 +45,7 @@
     "smoke:connections:packaged": "node scripts/connections-smoke.mjs --packaged-checklist",
     "smoke:migration": "node scripts/packaged-migration-smoke.mjs",
     "smoke:installer": "pwsh -NoProfile -File scripts/installer-smoke.ps1 -DryRun",
-    "lint:hex": "node scripts/lint-no-hex-components.mjs",
+    "lint:hex": "node scripts/lint-no-hex.mjs",
     "sbom": "node scripts/generate-sbom.mjs",
     "check:voice-slo": "node scripts/check-voice-slo.mjs"
   },

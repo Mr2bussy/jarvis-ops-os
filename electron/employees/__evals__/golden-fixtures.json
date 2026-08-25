@@ -1,0 +1,90 @@
+[
+  {
+    "id": "email-invoice-01",
+    "employee": "email",
+    "kind": "classify",
+    "input": {
+      "from": "billing@hostinger.com",
+      "subject": "Invoice #8821",
+      "body": "Your payment is due"
+    },
+    "expect": {
+      "category": "invoice",
+      "minConfidence": 0.5
+    }
+  },
+  {
+    "id": "email-urgent-01",
+    "employee": "email",
+    "kind": "classify",
+    "input": {
+      "from": "ceo@acme.de",
+      "subject": "DRINGEND: bitte sofort prüfen",
+      "body": "ASAP — Board call in 10 Minuten"
+    },
+    "expect": {
+      "category": "urgent",
+      "minConfidence": 0.5
+    }
+  },
+  {
+    "id": "email-newsletter-01",
+    "employee": "email",
+    "kind": "classify",
+    "input": {
+      "from": "news@digest.com",
+      "subject": "Weekly Newsletter",
+      "body": "Unsubscribe anytime"
+    },
+    "expect": {
+      "category": "newsletter",
+      "minConfidence": 0.5
+    }
+  },
+  {
+    "id": "email-draft-01",
+    "employee": "email",
+    "kind": "draft-reply",
+    "input": {
+      "original": {
+        "id": "m1",
+        "from": "billing@vendor.de",
+        "subject": "Rechnung #9",
+        "snippet": "Betrag fällig",
+        "category": "invoice",
+        "confidence": 0.9,
+        "receivedAt": "2026-08-25T00:00:00.000Z"
+      }
+    },
+    "expect": {
+      "requiresHitl": true,
+      "hasDraft": true
+    }
+  },
+  {
+    "id": "invoice-extract-01",
+    "employee": "invoice",
+    "kind": "extract",
+    "input": {
+      "text": "Rechnung\nLieferant: Acme GmbH\nBetrag: 199,50 EUR\nRechnungsdatum: 15.03.2026"
+    },
+    "expect": {
+      "amount": 199.5,
+      "plausibility": "ok"
+    }
+  },
+  {
+    "id": "calendar-conflict-01",
+    "employee": "calendar",
+    "kind": "conflict-check",
+    "input": {
+      "events": [
+        { "title": "Standup", "start": "2026-08-25T09:00:00Z", "end": "2026-08-25T09:30:00Z" },
+        { "title": "Overlap", "start": "2026-08-25T09:15:00Z", "end": "2026-08-25T10:00:00Z" }
+      ]
+    },
+    "expect": {
+      "hasConflict": true
+    }
+  }
+]

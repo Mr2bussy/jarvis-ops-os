@@ -12,20 +12,11 @@ import {
   WriteFilePayload,
   ReadFilePath,
   Mt5Payload,
-  ConfigSetKey,
   ComposioExecute,
 } from './security/ipc';
 import { detectProviderFrom, compressSystem, compressMsgs } from './ai/router';
 import { openAICompatComplete } from './ai/providers';
-import {
-  getDecryptedKey,
-  setConfigKey,
-  deleteConfigKey,
-  hasConfigKey,
-  ensureBridgeToken,
-  getAdvancedMode,
-  setAdvancedMode,
-} from './config/store';
+import { getDecryptedKey, ensureBridgeToken, getAdvancedMode } from './config/store';
 import { getSystemMetrics } from './system/metrics';
 import {
   hasComposio,
@@ -33,20 +24,28 @@ import {
   executeAction,
   listConnections,
   groupIntoCategories,
-  resetComposioClient,
 } from './integrations/composio';
 import { ActivityRing } from './activity-ring';
 import { JarvisPrimeHarness } from './harness/service';
 import { registerHarnessIpc, setHarnessInstance, getHarnessInstance } from './harness/ipc';
 import { initHermesRouter, registerGatewayIpc, getHermesRouter } from './gateway/ipc';
+import { registerProductionIpc } from './ipc/register-production';
+import { registerCommerceIpc } from './ipc/register-commerce';
+import { registerContentIpc } from './ipc/register-content';
+import { registerConfigIpc } from './ipc/register-config';
+import { registerDomainIpc } from './ipc/register-domain';
+import { registerEmployeeIpc } from './employees/ipc';
+import { configureAutoUpdater, broadcastFeedStatus } from './updater/auto-update';
+import { initFeatureFlags } from './config/flags';
 
 // â”€â”€ Chromium flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 app.commandLine.appendSwitch('disable-gpu-disk-cache');
 
-// â”€â”€ .env loader (dev only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ .env loader (dev / unpackaged only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function loadDotEnv() {
+  if (app.isPackaged) return;
   const envPath = path.resolve(app.getAppPath(), '.env');
   if (!fs.existsSync(envPath)) return;
   const txt = fs.readFileSync(envPath, 'utf8');
@@ -60,60 +59,7 @@ function loadDotEnv() {
 }
 loadDotEnv();
 
-// â”€â”€ Safe Storage config (OS-keychain backed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Config store, key encryption, the MT5 bridge token, and the Advanced-Mode flag
-// live in ./config/store (imported above) — extracted for testability + smaller main.
-ipcMain.handle('config:getAdvancedMode', () => getAdvancedMode());
-ipcMain.handle('config:setAdvancedMode', (_e, on: unknown) => {
-  setAdvancedMode(Boolean(on));
-  return getAdvancedMode();
-});
-
-ipcMain.handle('config:setKey', async (_evt, raw: unknown) => {
-  const { name, value } = validate(ConfigSetKey, raw);
-  setConfigKey(name, value);
-  if (name === 'ANTHROPIC_API_KEY') {
-    process.env.ANTHROPIC_API_KEY = value;
-    client = null;
-  }
-  if (name === 'COMPOSIO_API_KEY') resetComposioClient();
-  if (name === 'GEMINI_API_KEY') process.env.GEMINI_API_KEY = value;
-  if (name === 'GITHUB_TOKEN') process.env.GITHUB_TOKEN = value;
-  if (name === 'DASHSCOPE_API_KEY') process.env.DASHSCOPE_API_KEY = value;
-  if (name === 'JARVIS_MODEL') process.env.JARVIS_MODEL = value;
-  return true;
-});
-ipcMain.handle('config:getKey', async (_evt, name: string) => getDecryptedKey(name));
-ipcMain.handle('config:hasKey', async (_evt, name: string) => hasConfigKey(name));
-ipcMain.handle('config:deleteKey', async (_evt, name: string) => {
-  deleteConfigKey(name);
-  return true;
-});
-ipcMain.handle('config:getMt5', async () => ({
-  host: getDecryptedKey('MT5_HOST') || 'localhost',
-  port: parseInt(getDecryptedKey('MT5_PORT') || '1234', 10),
-}));
-ipcMain.handle('config:setMt5', async (_evt, payload: { host: string; port: number }) => {
-  // preload sends a { host, port } object; read from it (previously mis-read as
-  // positional args, so MT5 host/port never actually saved).
-  setConfigKey('MT5_HOST', String(payload?.host ?? 'localhost'));
-  setConfigKey('MT5_PORT', String(payload?.port ?? 1234));
-  return true;
-});
-ipcMain.handle('config:reload-keys', () => {
-  for (const name of [
-    'ANTHROPIC_API_KEY',
-    'GEMINI_API_KEY',
-    'GITHUB_TOKEN',
-    'DASHSCOPE_API_KEY',
-    'JARVIS_MODEL',
-  ]) {
-    const v = getDecryptedKey(name);
-    if (v) process.env[name] = v;
-  }
-  client = null;
-  return true;
-});
+// Config IPC — see electron/ipc/register-config.ts (registered below near client)
 
 // ── Activity Ring Buffer ─────────────────────────────────────────────────────
 const activityRing = new ActivityRing();
@@ -150,6 +96,13 @@ const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
 
 // â”€â”€ Anthropic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let client: Anthropic | null = null;
+
+registerConfigIpc(ipcMain, {
+  resetAnthropicClient: () => {
+    client = null;
+  },
+});
+
 function getModel(): string {
   return getDecryptedKey('JARVIS_MODEL') || process.env.JARVIS_MODEL || 'claude-haiku-4-5';
 }
@@ -1312,6 +1265,14 @@ function createWindow() {
 
   win.on('close', () => saveWindowState(win));
 
+  win.webContents.on('did-finish-load', () => {
+    try {
+      broadcastFeedStatus(win);
+    } catch {
+      /* optional */
+    }
+  });
+
   if (isDev) {
     win.loadURL('http://localhost:5173');
   } else {
@@ -1565,9 +1526,27 @@ app.whenReady().then(() => {
     'GITHUB_TOKEN',
     'DASHSCOPE_API_KEY',
     'JARVIS_MODEL',
+    'UPDATE_FEED_URL',
   ]) {
     const v = getDecryptedKey(name);
     if (v) process.env[name] = v;
+  }
+
+  initFeatureFlags(app.getPath('userData'));
+  registerProductionIpc(ipcMain, {
+    pushActivity,
+    getMainWindow: () => mainWin,
+  });
+  registerCommerceIpc(ipcMain);
+  registerContentIpc(ipcMain);
+  registerDomainIpc(ipcMain, { pushActivity });
+  registerEmployeeIpc(ipcMain);
+
+  // electron-updater: fail-closed when packaged without UPDATE_FEED_URL (D7).
+  // autoUpdater.autoDownload = false is set inside configureAutoUpdater.
+  const feedStatus = configureAutoUpdater((msg) => pushActivity('UPDATER', 'FEED', msg.slice(0, 80)));
+  if (feedStatus.failClosed) {
+    pushActivity('UPDATER', 'FAIL-CLOSED', feedStatus.reason?.slice(0, 80) ?? 'no feed');
   }
 
   registerHarnessIpc(ipcMain);
@@ -1651,6 +1630,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  broadcastFeedStatus(mainWin);
   tryStartMt5Bridge();
   loadScheduledJobs();
 

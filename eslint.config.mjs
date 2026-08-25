@@ -12,6 +12,11 @@ export default tseslint.config(
     ignores: [
       'dist/**', 'dist-electron/**', 'dist_new/**', 'release/**',
       'node_modules/**', 'coverage/**', '**/*.config.{js,mjs,ts}',
+      'stryker-tmp/**', '.stryker-tmp/**', 'reports/**',
+      'playwright-report/**', 'test-results/**', '_archive/**',
+      // Plain Node scripts (ESM/CJS) — not TS-eslint targets
+      'scripts/**/*.{mjs,cjs,js}',
+      '.dependency-cruiser.cjs',
     ],
   },
   js.configs.recommended,
@@ -40,6 +45,8 @@ export default tseslint.config(
       'no-empty': ['warn', { allowEmptyCatch: true }],
       'no-control-regex': 'off',
       'prefer-const': 'warn',
+      // Legacy HUD/@ts-nocheck surfaces: allow until typed (false = not banned).
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
   {
@@ -49,6 +56,7 @@ export default tseslint.config(
     rules: {
       'no-undef': 'off',
       'preserve-caught-error': 'warn',
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
   prettier,

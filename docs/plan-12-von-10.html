@@ -1,0 +1,829 @@
+<title>Zwölf von Zehn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ── Token: vollständige Hellpalette auf :root ─────────────────────── */
+  :root {
+    --ground:    #fbfbfc;
+    --surface:   #ffffff;
+    --sunk:      #f4f3f0;
+    --hairline:  #e3e1dc;
+    --hairline-2:#efede8;
+
+    --text:      #17181b;
+    --dim:       #5c5e66;
+    --faint:     #8b8d95;
+
+    --brass:     #8a6212;   /* Akzent: Kalibriermarke, Sperrklinke */
+    --brass-soft:#8a621216;
+    --ok:        #1f7a4c;
+    --warn:      #9a6b00;
+    --crit:      #b03434;
+
+    --track:     #e6e4df;
+
+    --step--1: clamp(.74rem, .72rem + .1vw, .8rem);
+    --step-0:  clamp(.94rem, .9rem + .18vw, 1.02rem);
+    --step-1:  clamp(1.08rem, 1rem + .3vw, 1.22rem);
+    --step-2:  clamp(1.35rem, 1.2rem + .6vw, 1.75rem);
+    --step-3:  clamp(1.9rem, 1.5rem + 1.6vw, 3.1rem);
+    --step-4:  clamp(2.6rem, 1.9rem + 3vw, 4.6rem);
+
+    --display: "Familjen Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --body:    "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+    --mono:    "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  }
+
+  /* Systemvorgabe dunkel — schlägt nicht die ausdrückliche Hellwahl */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:    #0e0f12;
+      --surface:   #16181d;
+      --sunk:      #1b1e24;
+      --hairline:  #282c33;
+      --hairline-2:#20242a;
+
+      --text:      #e9e7e2;
+      --dim:       #a5a29b;
+      --faint:     #74767d;
+
+      --brass:     #d9a441;
+      --brass-soft:#d9a4411f;
+      --ok:        #4fb477;
+      --warn:      #e0b04a;
+      --crit:      #e05555;
+
+      --track:     #262a31;
+    }
+  }
+  /* Ausdrückliche Dunkelwahl gewinnt in beide Richtungen */
+  :root[data-theme="dark"] {
+    --ground:    #0e0f12;
+    --surface:   #16181d;
+    --sunk:      #1b1e24;
+    --hairline:  #282c33;
+    --hairline-2:#20242a;
+
+    --text:      #e9e7e2;
+    --dim:       #a5a29b;
+    --faint:     #74767d;
+
+    --brass:     #d9a441;
+    --brass-soft:#d9a4411f;
+    --ok:        #4fb477;
+    --warn:      #e0b04a;
+    --crit:      #e05555;
+
+    --track:     #262a31;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 4vw, 2.5rem) 5rem;
+  }
+
+  /* ── Kopf ───────────────────────────────────────────────────────────── */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--brass);
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: var(--step-4);
+    font-weight: 700;
+    letter-spacing: -.035em;
+    line-height: .96;
+    margin: .5rem 0 0;
+    text-wrap: balance;
+  }
+  .lede {
+    font-size: var(--step-1);
+    color: var(--dim);
+    max-width: 62ch;
+    margin: 1.25rem 0 0;
+  }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  .thesis {
+    margin: 2.5rem 0 0;
+    padding: 1.5rem clamp(1rem, 3vw, 2rem);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--brass);
+    border-radius: 3px;
+    display: grid;
+    gap: .75rem;
+  }
+  .thesis p { margin: 0; max-width: 68ch; }
+  .thesis .rule {
+    font-family: var(--display);
+    font-size: var(--step-2);
+    font-weight: 600;
+    letter-spacing: -.02em;
+    line-height: 1.2;
+  }
+  .thesis .rule span { color: var(--brass); }
+
+  /* ── Abschnittsköpfe ────────────────────────────────────────────────── */
+  h2 {
+    font-family: var(--display);
+    font-size: var(--step-3);
+    font-weight: 700;
+    letter-spacing: -.03em;
+    margin: 4rem 0 .5rem;
+    text-wrap: balance;
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: var(--step-0);
+    font-weight: 400;
+    color: var(--brass);
+    letter-spacing: .05em;
+    display: block;
+    margin-bottom: .35rem;
+  }
+  .section-note { color: var(--dim); max-width: 66ch; margin: 0 0 1.75rem; }
+
+  /* ── Phase 0 ────────────────────────────────────────────────────────── */
+  .blocker {
+    border: 1px solid var(--crit);
+    background: var(--surface);
+    border-radius: 3px;
+    padding: clamp(1rem, 3vw, 1.75rem);
+    display: grid;
+    gap: 1rem;
+  }
+  .blocker-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: .75rem;
+    font-family: var(--mono); font-size: var(--step--1);
+    letter-spacing: .1em; text-transform: uppercase; color: var(--crit);
+  }
+  ol.steps { margin: 0; padding-left: 1.25rem; display: grid; gap: 1rem; }
+  ol.steps > li::marker { font-family: var(--mono); color: var(--brass); }
+  ol.steps > li > b { font-weight: 600; }
+
+  /* ── Dimensionskarten ───────────────────────────────────────────────── */
+  .dim {
+    border: 1px solid var(--hairline);
+    background: var(--surface);
+    border-radius: 3px;
+    margin: 1.25rem 0;
+    overflow: hidden;
+  }
+  .dim-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(210px, auto);
+    gap: 1rem 2rem;
+    align-items: center;
+    padding: 1.1rem clamp(1rem, 3vw, 1.75rem);
+    border-bottom: 1px solid var(--hairline-2);
+    background: var(--sunk);
+  }
+  @media (max-width: 620px) { .dim-head { grid-template-columns: minmax(0,1fr); } }
+  .dim-name {
+    font-family: var(--display);
+    font-size: var(--step-2);
+    font-weight: 600;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+  }
+  .dim-id { font-family: var(--mono); font-size: var(--step--1); color: var(--brass); letter-spacing: .08em; }
+
+  /* Sperrklinken-Skala: Ist-Stand, Ziel 10, verriegelt bei 12 */
+  .ratchet { display: grid; gap: .3rem; }
+  .ratchet-bar {
+    position: relative; height: 10px; border-radius: 2px;
+    background: var(--track);
+    display: grid; grid-template-columns: repeat(12, 1fr); gap: 1px;
+    overflow: hidden;
+  }
+  .ratchet-bar i { display: block; background: transparent; }
+  .ratchet-bar i.on   { background: var(--brass); }
+  .ratchet-bar i.goal { background: var(--brass-soft); box-shadow: inset 0 0 0 1px var(--brass); }
+  .ratchet-legend {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
+    color: var(--faint); text-transform: uppercase;
+  }
+  .ratchet-legend b { color: var(--text); font-weight: 500; }
+
+  .dim-body { padding: clamp(1rem, 3vw, 1.75rem); display: grid; gap: 1.5rem; }
+
+  .two {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1px; background: var(--hairline-2);
+    border: 1px solid var(--hairline-2); border-radius: 3px; overflow: hidden;
+  }
+  .two > div { background: var(--surface); padding: 1rem 1.1rem; display: grid; gap: .5rem; align-content: start; }
+  .two h3 {
+    margin: 0; font-family: var(--mono); font-size: var(--step--1);
+    letter-spacing: .1em; text-transform: uppercase; font-weight: 500; color: var(--faint);
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .two h3 .badge {
+    font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 2px;
+    background: var(--brass-soft); color: var(--brass); letter-spacing: .06em;
+  }
+  .two p { margin: 0; }
+  .two .locked { border-left: 2px solid var(--brass); }
+
+  ul.plain { margin: 0; padding-left: 1.1rem; display: grid; gap: .45rem; }
+  ul.plain li::marker { color: var(--brass); }
+
+  /* Code */
+  pre {
+    margin: 0; background: var(--sunk); border: 1px solid var(--hairline-2);
+    border-radius: 3px; padding: .85rem 1rem; overflow-x: auto;
+    font-family: var(--mono); font-size: var(--step--1); line-height: 1.65; color: var(--text);
+  }
+  code { font-family: var(--mono); font-size: .92em; }
+  p code, li code, td code { background: var(--sunk); border: 1px solid var(--hairline-2); border-radius: 2px; padding: .05em .35em; }
+
+  .accept {
+    display: grid; grid-template-columns: auto minmax(0,1fr); gap: .75rem; align-items: baseline;
+    border-top: 1px solid var(--hairline-2); padding-top: .9rem;
+    font-size: var(--step--1);
+  }
+  .accept .k {
+    font-family: var(--mono); letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ok); font-size: 10px;
+  }
+  .accept .v { color: var(--dim); }
+  .accept .v code { color: var(--text); }
+
+  /* Tabellen */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--hairline-2); border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--step--1); }
+  th, td { text-align: left; padding: .6rem .85rem; border-bottom: 1px solid var(--hairline-2); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--faint); font-weight: 500; background: var(--sunk);
+  }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+
+  /* Beweis-Block */
+  .proof {
+    border: 1px solid var(--brass);
+    background: var(--surface);
+    border-radius: 3px;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    display: grid; gap: 1.1rem;
+  }
+  .proof .cmd {
+    font-family: var(--display); font-size: var(--step-2); font-weight: 600;
+    letter-spacing: -.02em; color: var(--brass);
+  }
+
+  .foot {
+    margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--hairline);
+    color: var(--faint); font-family: var(--mono); font-size: var(--step--1);
+    display: flex; flex-wrap: wrap; gap: .5rem 1.5rem;
+  }
+
+  a { color: var(--brass); text-underline-offset: .2em; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">JARVIS Operations OS · Kalibrierplan · 25. August 2026</div>
+    <h1>Zwölf von Zehn</h1>
+    <p class="lede">
+      Acht Dimensionen, heute im Schnitt bei <strong>5</strong>. Der Weg auf 10 ist Arbeit.
+      Der Weg auf 12 ist etwas anderes: <strong>ein Mechanismus, der den Rückfall unmöglich macht.</strong>
+    </p>
+
+    <div class="thesis">
+      <p class="rule">10 heißt: die Eigenschaft ist da.<br><span>12 heißt: sie kann nicht mehr verloren gehen.</span></p>
+      <p>
+        Dieses Projekt war schon einmal bei 8 — 431 grüne Tests, lückenloser IPC-Vertrag, ein Vault mit
+        121 Agenten. Innerhalb von drei Tagen ist alles davon verfallen, weil nichts es festgehalten hat.
+        Jede Dimension unten bekommt deshalb eine <b>Sperrklinke</b>: eine Prüfung, die den Build rot färbt,
+        sobald die Eigenschaft verschwindet. Nicht ein Dokument, das behauptet, sie sei da.
+      </p>
+    </div>
+  </header>
+
+  <!-- ── PHASE 0 ─────────────────────────────────────────────────────── -->
+  <h2><span class="num">PHASE 0 · HEUTE · ~2 STUNDEN</span>Erst die Blockade lösen</h2>
+  <p class="section-note">
+    Vier Befunde schalten derzeit die Kontrollmechanismen aus. Solange sie stehen, ist jede Messung wertlos —
+    und damit jeder Fortschritt unbeweisbar.
+  </p>
+
+  <div class="blocker">
+    <div class="blocker-head">
+      <span>Blockierend</span><span>·</span><span>CI fällt bereits im ersten Gate</span>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <b>1,55 GB Fremdcode und den Backup-Ordner entfernen.</b>
+        <code>.compare/</code> und <code>_compare/</code> enthalten dieselbe Kopie eines fremden Repos, je 774 MB.
+        <code>node_modules.partial.bak</code> erzeugt gleichzeitig 11 541 Phantom-Einträge im Git-Index,
+        einen blockierenden Fund im Secret-Scanner und einen Pre-Commit-Hook, der Minuten hängt.
+        <pre>rm -rf .compare _compare node_modules.partial.bak
+printf '\n.compare/\n_compare/\nnode_modules.partial.bak*/\n*.bak\n' &gt;&gt; .gitignore</pre>
+      </li>
+      <li>
+        <b>Index säubern und einen Snapshot festhalten.</b> Drei Tage schwere Arbeit liegen ohne Rückfallpunkt da;
+        der letzte Commit stammt vom 22. August.
+        <pre>git rm -r --cached node_modules.partial.bak --ignore-unmatch -q
+git add .gitignore electron src docs scripts e2e prompts package.json pnpm-lock.yaml
+git commit -m "chore: reclaim tree — drop vendored copies and node_modules backup"</pre>
+      </li>
+      <li>
+        <b>Das Traversal-Loch schließen.</b> Sieben rote Tests in <code>command-allowlist.test.ts</code> beschreiben
+        eine echte Lücke: <code>type &lt;pfad&gt;</code> liest jede Datei <em>ohne</em> Advanced-Mode-Gate.
+        Details in Dimension 2 — aber der Fix gehört noch heute in den Baum, weil die Statusmatrix
+        diesen Punkt bereits als <code>DONE</code> führt.
+      </li>
+      <li>
+        <b>Den Agenten-Vault reparieren.</b> <code>JARVIS_AGENTS_PATH</code> zeigt auf
+        <code>G:\jarvis the og project\agents</code> — dieses Verzeichnis existiert nicht mehr, gestern lagen
+        dort 121 Dateien. Die Oberfläche behauptet weiterhin 187 Agenten.
+      </li>
+    </ol>
+
+    <div class="accept">
+      <span class="k">Abnahme</span>
+      <span class="v">
+        <code>git status --short | wc -l</code> unter 20 · Secret-Scan unter 5 s ·
+        <code>eslint .</code> ohne Absturz · <code>pnpm test</code> grün · Selbsttest meldet Agent-Dateien &gt; 0
+      </span>
+    </div>
+  </div>
+
+  <!-- ── DIMENSIONEN ─────────────────────────────────────────────────── -->
+  <h2><span class="num">DIE ACHT DIMENSIONEN</span>Von erreicht zu verriegelt</h2>
+  <p class="section-note">
+    Jede Karte zeigt den heutigen Stand, was die 10 bedeutet — und darunter die Sperrklinke, die daraus eine 12 macht.
+    Die Skala ist bewusst zwölfteilig: die letzten zwei Zähne stehen nicht für mehr Funktionen, sondern für Unumkehrbarkeit.
+  </p>
+
+  <!-- D1 -->
+  <article class="dim">
+    <div class="dim-head">
+      <div>
+        <div class="dim-id">D1</div>
+        <div class="dim-name">Projekthygiene</div>
+      </div>
+      <div class="ratchet">
+        <div class="ratchet-bar" role="img" aria-label="Heute 2 von 12, Ziel 12">
+          <i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="goal"></i><i class="goal"></i><i class="goal"></i>
+        </div>
+        <div class="ratchet-legend"><span>Heute <b>2</b></span><span>10 erreicht</span><span><b>12</b> verriegelt</span></div>
+      </div>
+    </div>
+    <div class="dim-body">
+      <div class="two">
+        <div>
+          <h3>Was 10 bedeutet</h3>
+          <p>Ein einziger Projektort. Sauberer Index, vollständige <code>.gitignore</code>, nichts Fremdes im Baum,
+          keine <code>.bak</code>-Dateien, regelmäßige Commits.</p>
+        </div>
+        <div class="locked">
+          <h3>Sperrklinke <span class="badge">🔒 D1</span></h3>
+          <p><code>scripts/doctor.mjs --tree</code> läuft als CI-Job <em>und</em> im Pre-Commit-Hook —
+          ein 774-MB-Ordner kann nicht mehr unbemerkt entstehen.</p>
+        </div>
+      </div>
+
+      <ul class="plain">
+        <li>Oberste Verzeichnisebene gegen eine Whitelist prüfen; alles Unbekannte ist ein Fehler, keine Warnung.</li>
+        <li>Keine versionierte Datei über 5 MB, keine <code>*.bak*</code>, Repo-Größe gegen ein Budget.</li>
+        <li><code>.jarvis-home</code> hält den kanonischen Pfad. Startet die App woanders, meldet sie „zweite Kopie" —
+            genau der Zustand, der hier drei Kopien mit gemeinsamem userData erzeugt hat.</li>
+      </ul>
+
+      <div class="accept"><span class="k">Abnahme</span><span class="v"><code>node scripts/doctor.mjs --tree</code> beendet mit 0, im Hook und in der CI verdrahtet</span></div>
+    </div>
+  </article>
+
+  <!-- D2 -->
+  <article class="dim">
+    <div class="dim-head">
+      <div>
+        <div class="dim-id">D2</div>
+        <div class="dim-name">Sicherheit</div>
+      </div>
+      <div class="ratchet">
+        <div class="ratchet-bar" role="img" aria-label="Heute 3 von 12, Ziel 12">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="goal"></i><i class="goal"></i><i class="goal"></i>
+        </div>
+        <div class="ratchet-legend"><span>Heute <b>3</b></span><span>10 erreicht</span><span><b>12</b> verriegelt</span></div>
+      </div>
+    </div>
+    <div class="dim-body">
+      <div class="two">
+        <div>
+          <h3>Was 10 bedeutet</h3>
+          <p>Das Traversal-Loch ist zu, alle Sicherheitstests sind grün, <code>electronegativity</code> blockiert,
+          Abhängigkeiten sind auditiert.</p>
+        </div>
+        <div class="locked">
+          <h3>Sperrklinke <span class="badge">🔒 D2</span></h3>
+          <p>Argumentprüfung statt Musterliste, Property-Fuzz mit 10 000 generierten Pfaden, und ein
+          Bedrohungsmodell, in dem <em>jede</em> Angriffskette einen Test hat, der die Sperre beweist.</p>
+        </div>
+      </div>
+
+      <p><b>Der eigentliche Fix.</b> Heute entscheidet ein Regex über die ganze Befehlszeile
+      (<code>/^(type|cat)\s+[^\s]+\s*$/i</code>), und ein Treffer läuft ohne Gate. Stattdessen:</p>
+      <ul class="plain">
+        <li>Befehl in Kommando und Argumente zerlegen — nie die ganze Zeile mustern.</li>
+        <li>Kommando gegen die Allowlist, danach <em>jedes</em> pfadartige Argument durch <code>isPathInRoots()</code>.</li>
+        <li>Alles Übrige fällt auf <code>requiresAdvancedMode: true</code> zurück.</li>
+      </ul>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Angriffskette</th><th>Beweistest</th></tr></thead>
+          <tbody>
+            <tr><td>Telegram → Hermes → Agent → Werkzeug</td><td><code>shell_exec</code> bleibt deaktiviert (<code>executor.ts:138</code>)</td></tr>
+            <tr><td>Modellausgabe → Renderer</td><td>kein <code>dangerouslySetInnerHTML</code>, per ESLint erzwungen</td></tr>
+            <tr><td>Renderer → <code>console:runCmd</code></td><td>Pfadargument außerhalb der Roots wird abgelehnt</td></tr>
+            <tr><td>MT5-Bridge</td><td>Anfrage ohne <code>X-JARVIS-Token</code> ergibt 401</td></tr>
+            <tr><td>Vault-Pfad</td><td>Pfad außerhalb der Roots wird verweigert</td></tr>
+            <tr><td>Update-Kanal</td><td>unsignierte Version wird nicht installiert</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p><b>Zwei Nebenbaustellen, die sofort mitgehen:</b> Der Secret-Scanner braucht eine Vendor-Ignore-Liste
+      und eine Baseline (<code>--fail-on-new</code>) — ein Gate, das ohne echten Grund rot ist, wird übersprungen
+      und schützt danach gegen nichts. Und <code>deribit.com</code> gehört entweder in <code>CONNECT_SOURCES</code>
+      oder der Aufruf aus <code>trading-data.ts:386,474</code> raus; beides zu behalten produziert nur Lograuschen.</p>
+
+      <div class="accept"><span class="k">Abnahme</span><span class="v"><code>pnpm test:security</code> grün · sechs Beweistests grün · <code>pnpm audit --audit-level=high</code> ohne Fund</span></div>
+    </div>
+  </article>
+
+  <!-- D3 -->
+  <article class="dim">
+    <div class="dim-head">
+      <div>
+        <div class="dim-id">D3</div>
+        <div class="dim-name">Testzustand</div>
+      </div>
+      <div class="ratchet">
+        <div class="ratchet-bar" role="img" aria-label="Heute 3 von 12, Ziel 12">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="goal"></i><i class="goal"></i><i class="goal"></i>
+        </div>
+        <div class="ratchet-legend"><span>Heute <b>3</b></span><span>10 erreicht</span><span><b>12</b> verriegelt</span></div>
+      </div>
+    </div>
+    <div class="dim-body">
+      <div class="two">
+        <div>
+          <h3>Was 10 bedeutet</h3>
+          <p>Die Suite ist grün, nichts ist übersprungen, die CI läuft durch — und der Statusbericht deckt sich
+          mit dem, was die Suite sagt.</p>
+        </div>
+        <div class="locked">
+          <h3>Sperrklinke <span class="badge">🔒 D3</span></h3>
+          <p>Coverage-Ratchet, Mutationsscore auf den fünf teuren Modulen, Flaky-Gate durch Dreifachlauf,
+          und <code>main</code> ist ohne grüne CI nicht beschreibbar.</p>
+        </div>
+      </div>
+
+      <pre>node scripts/coverage-ratchet.mjs --update   # einmalig: schreibt .coverage-floor.json
+node scripts/coverage-ratchet.mjs           # in CI: exit 1, sobald die Abdeckung sinkt
+
+pnpm exec stryker run --mutate \
+  "electron/security/command-allowlist.ts,electron/harness/governance/risk-gate.ts,\
+src/lib/quant.ts,src/lib/prop-accounts.ts,src/lib/trading-math.ts"   # Score ≥ 70</pre>
+
+      <p>Mutationstests genau dort, wo ein Fehler Geld oder Sicherheit kostet. Ein grüner Test, der eine
+      absichtlich eingebaute Verfälschung nicht bemerkt, ist kein Test, sondern eine Beruhigung.</p>
+
+      <p><b>Und eine Regel, die keinen Code braucht:</b> Jeder Bugfix bringt einen Test mit, der vor dem Fix
+      rot war. Als Pflichtfeld in <code>.github/pull_request_template.md</code>.</p>
+
+      <div class="accept"><span class="k">Abnahme</span><span class="v">Ratchet-Datei im Repo · Mutationsscore ≥ 70 · Branch-Protection auf <code>main</code> aktiv</span></div>
+    </div>
+  </article>
+
+  <!-- D4 -->
+  <article class="dim">
+    <div class="dim-head">
+      <div>
+        <div class="dim-id">D4</div>
+        <div class="dim-name">Testabdeckung</div>
+      </div>
+      <div class="ratchet">
+        <div class="ratchet-bar" role="img" aria-label="Heute 7 von 12, Ziel 12">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i class="goal"></i><i class="goal"></i><i class="goal"></i>
+        </div>
+        <div class="ratchet-legend"><span>Heute <b>7</b></span><span>10 erreicht</span><span><b>12</b> verriegelt</span></div>
+      </div>
+    </div>
+    <div class="dim-body">
+      <div class="two">
+        <div>
+          <h3>Was 10 bedeutet</h3>
+          <p>Klare Pyramide: schnelle Unit-Tests, Vertragstests auf der IPC-Grenze, fünf goldene E2E-Flüsse,
+          eine Eval-Suite für das Modellverhalten.</p>
+        </div>
+        <div class="locked">
+          <h3>Sperrklinke <span class="badge">🔒 D4</span></h3>
+          <p>Die IPC-Verträge werden <em>generiert</em>. Damit verschwindet eine ganze Fehlerklasse —
+          sie wird nicht mehr gefunden, sie kann nicht mehr entstehen.</p>
+        </div>
+      </div>
+
+      <p>Heute steht dieselbe Wahrheit an drei Orten: <code>preload.ts</code>, <code>global.d.ts</code> und die
+      Handler in <code>main.ts</code>. Drei Orte, die auseinanderlaufen können — und gestern noch taten
+      (<code>jarvis:gemini-transcribe</code> ohne Aufrufer, elf <code>employee:*</code>-Handler ohne Konsument).
+      Stattdessen eine Quelle:</p>
+
+      <pre>// electron/ipc/registry.ts — die einzige Wahrheit
+export const CHANNELS = {
+  'jarvis:complete': { schema: CompletePayload, risk: 'B', handler: handleComplete },
+  'mt5:positions':   { schema: Mt5Query,       risk: 'A', handler: handleMt5Positions },
+} as const;</pre>
+
+      <pre>pnpm gen:ipc           # erzeugt preload.ts, global.d.ts, docs/IPC.md
+pnpm gen:ipc --check   # in CI: rot, wenn generiert ≠ eingecheckt</pre>
+
+      <p>„Kanal ohne Handler", „Handler ohne Schema", „Typ ohne Implementierung" sind danach keine Testfälle mehr,
+      sondern Konstruktionsfehler, die der Generator gar nicht erzeugen kann.</p>
+
+      <div class="accept"><span class="k">Abnahme</span><span class="v"><code>pnpm gen:ipc --check</code> grün · fünf goldene E2E-Flüsse grün · Eval-Score über der Schwelle</span></div>
+    </div>
+  </article>
+
+  <!-- D5 -->
+  <article class="dim">
+    <div class="dim-head">
+      <div>
+        <div class="dim-id">D5</div>
+        <div class="dim-name">Datenehrlichkeit</div>
+      </div>
+      <div class="ratchet">
+        <div class="ratchet-bar" role="img" aria-label="Heute 4 von 12, Ziel 12">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i class="goal"></i><i class="goal"></i><i class="goal"></i>
+        </div>
+        <div class="ratchet-legend"><span>Heute <b>4</b></span><span>10 erreicht</span><span><b>12</b> verriegelt</span></div>
+      </div>
+    </div>
+    <div class="dim-body">
+      <div class="two">
+        <div>
+          <h3>Was 10 bedeutet</h3>
+          <p>Der Vault ist repariert, <code>AGENT_COUNT</code> stammt aus einer Messung, Katalogzahlen tragen ein
+          Etikett, und kein Ausfall wird durch eine erfundene Antwort überdeckt.</p>
+        </div>
+        <div class="locked">
+          <h3>Sperrklinke <span class="badge">🔒 D5</span></h3>
+          <p>Herkunft wandert ins Typsystem: Eine Zahl ohne Quelle lässt sich nicht mehr rendern —
+          sie ist ein Compilerfehler, keine Frage der Disziplin.</p>
+        </div>
+      </div>
+
+      <pre>// src/lib/sourced.ts
+export type Sourced&lt;T&gt; = {
+  value: T;
+  source: 'measured' | 'catalog' | 'none';
+  at?: number;     // wann gemessen
+  from?: string;   // woher, z. B. 'vault-scan' oder 'mt5:1234'
+};</pre>
+
+      <ul class="plain">
+        <li>Panels rendern ausschließlich über <code>&lt;Value data={sourced} /&gt;</code>, das die Herkunftsmarke selbst zeichnet.</li>
+        <li>ESLint verbietet nackte Zahlenliterale in JSX unterhalb von <code>src/screens/**</code>.</li>
+        <li><code>offlineJarvisReply()</code> liefert <code>{ text, degraded: true, reason }</code> — die Oberfläche
+            zeigt ein Warnband statt einer Antwort, die klingt, als sei JARVIS dumm geworden.</li>
+        <li>Der Selbsttest läuft beim Start und erscheint als Health-Karte auf der Bridge, nicht versteckt in Admin.</li>
+      </ul>
+
+      <p>Das ist die Dimension mit dem größten Hebel. Wenn eine sichtbare Zahl nachweislich erfunden ist —
+      „187 agents" bei null vorhandenen Dateien — glaubt der Operator auch den echten nicht mehr.
+      Dann ist die gesamte Oberfläche wertlos, egal wie gut der Rest funktioniert.</p>
+
+      <div class="accept"><span class="k">Abnahme</span><span class="v">Kein Panel ohne Quelle · Selbsttest <code>healthy</code> oder ausschließlich quittierte Warnungen</span></div>
+    </div>
+  </article>
+
+  <!-- D6 -->
+  <article class="dim">
+    <div class="dim-head">
+      <div>
+        <div class="dim-id">D6</div>
+        <div class="dim-name">Architektur</div>
+      </div>
+      <div class="ratchet">
+        <div class="ratchet-bar" role="img" aria-label="Heute 8 von 12, Ziel 12">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i class="goal"></i><i class="goal"></i><i class="goal"></i>
+        </div>
+        <div class="ratchet-legend"><span>Heute <b>8</b></span><span>10 erreicht</span><span><b>12</b> verriegelt</span></div>
+      </div>
+    </div>
+    <div class="dim-body">
+      <div class="two">
+        <div>
+          <h3>Was 10 bedeutet</h3>
+          <p>Saubere Modulschnitte, entlasteter Bootstrap, keine Zyklen — der Zustand, den das Projekt
+          heute schon fast erreicht.</p>
+        </div>
+        <div class="locked">
+          <h3>Sperrklinke <span class="badge">🔒 D6</span></h3>
+          <p>Grenzen werden erzwungen statt vereinbart: <code>dependency-cruiser</code> in der CI plus ein
+          hartes Dateigrößenbudget.</p>
+        </div>
+      </div>
+
+      <ul class="plain">
+        <li><code>src/**</code> importiert nichts aus <code>electron/**</code> außer den Typen.</li>
+        <li><code>employees</code>, <code>gateway</code>, <code>harness</code> importieren nicht aus <code>main.ts</code>.</li>
+        <li>Keine Zyklen. Keine Datei über <b>600 Zeilen</b>.</li>
+      </ul>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Datei</th><th class="num">Heute</th><th>Ziel</th></tr></thead>
+          <tbody>
+            <tr><td><code>src/screens/TradingContent.tsx</code></td><td class="num">3 125</td><td>6 Module à ~500</td></tr>
+            <tr><td><code>electron/main.ts</code></td><td class="num">2 930</td><td>Bootstrap &lt; 400, Rest in <code>register*Ipc()</code></td></tr>
+            <tr><td><code>src/screens/Admin.tsx</code></td><td class="num">2 080</td><td>Tab-Module</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="accept"><span class="k">Abnahme</span><span class="v"><code>pnpm exec depcruise</code> grün · keine Datei über 600 Zeilen · ADR für jede strukturelle Entscheidung</span></div>
+    </div>
+  </article>
+
+  <!-- D7 -->
+  <article class="dim">
+    <div class="dim-head">
+      <div>
+        <div class="dim-id">D7</div>
+        <div class="dim-name">Auslieferreife</div>
+      </div>
+      <div class="ratchet">
+        <div class="ratchet-bar" role="img" aria-label="Heute 3 von 12, Ziel 12">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="goal"></i><i class="goal"></i><i class="goal"></i>
+        </div>
+        <div class="ratchet-legend"><span>Heute <b>3</b></span><span>10 erreicht</span><span><b>12</b> verriegelt</span></div>
+      </div>
+    </div>
+    <div class="dim-body">
+      <div class="two">
+        <div>
+          <h3>Was 10 bedeutet</h3>
+          <p>Ein signierter Installer, auf einer sauberen VM getestet, Schlüssel ausschließlich im safeStorage.</p>
+        </div>
+        <div class="locked">
+          <h3>Sperrklinke <span class="badge">🔒 D7</span></h3>
+          <p>Ein Tag genügt: bauen, signieren, veröffentlichen — und ein Runner nimmt den Installer
+          automatisch ab, bevor irgendjemand ihn bekommt.</p>
+        </div>
+      </div>
+
+      <ul class="plain">
+        <li><code>release.yml</code> auf <code>tags: v*</code> — <code>electron-builder --win --publish always</code>
+            mit <code>CSC_LINK</code> und <code>CSC_KEY_PASSWORD</code>.</li>
+        <li><b>Installer-Rauchtest</b> auf frischem Windows-Runner: still installieren, starten,
+            <code>production:dry-run</code> abfragen, Health prüfen, deinstallieren.</li>
+        <li>SBOM ans Release, Vorgängerversion bleibt als Rollback im Update-Feed.</li>
+      </ul>
+
+      <p><b>Die Falle, die eine gepackte App leer starten lässt:</b> <code>app.isPackaged</code> schaltet das Lesen
+      der <code>.env</code> ab (<code>electron/config/store.ts:55</code>). Alles, was heute nur dort steht —
+      <code>ANTHROPIC_API_KEY</code>, <code>GITHUB_TOKEN</code>, <code>JARVIS_MODEL</code>,
+      <code>JARVIS_AGENTS_PATH</code> — muss vorher in den safeStorage. In der Entwicklung fällt das nie auf.</p>
+
+      <div class="accept"><span class="k">Abnahme</span><span class="v">Ein Tag erzeugt eine signierte, installierbare Version, die der Rauchtest grün abnimmt</span></div>
+    </div>
+  </article>
+
+  <!-- D8 -->
+  <article class="dim">
+    <div class="dim-head">
+      <div>
+        <div class="dim-id">D8</div>
+        <div class="dim-name">Oberfläche und Produkt</div>
+      </div>
+      <div class="ratchet">
+        <div class="ratchet-bar" role="img" aria-label="Heute 5 von 12, Ziel 12">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i class="goal"></i><i class="goal"></i><i class="goal"></i>
+        </div>
+        <div class="ratchet-legend"><span>Heute <b>5</b></span><span>10 erreicht</span><span><b>12</b> verriegelt</span></div>
+      </div>
+    </div>
+    <div class="dim-body">
+      <div class="two">
+        <div>
+          <h3>Was 10 bedeutet</h3>
+          <p>Echtes Grid statt fixer 1920×1080-Bühne, die verwaisten Screens angeschlossen, und jedes Modul
+          mit vier definierten Zuständen: leer, lädt, Fehler, live.</p>
+        </div>
+        <div class="locked">
+          <h3>Sperrklinke <span class="badge">🔒 D8</span></h3>
+          <p>Budgets für Geschwindigkeit, Sprachlatenz und Bedienbarkeit sind Testfälle — nicht Vorsätze.</p>
+        </div>
+      </div>
+
+      <ul class="plain">
+        <li><b>Bühne raus.</b> <code>#stage { width:1920px; height:1080px }</code> skaliert die App per Transform,
+            statt sie umfließen zu lassen — daher die weiche Anmutung auf dem 2768-px-Fenster.
+            Vorlage liegt bereits im Repo: <code>design-previews/obsidian-command.html</code>.</li>
+        <li><b>Verwaiste Screens anschließen.</b> <code>Console.tsx</code> (1 247 Z.) und <code>System.tsx</code> (540 Z.)
+            haben vollständige Backends und null Importe. Erst danach — nicht davor — darf das Traversal-Loch zu sein.</li>
+        <li><b>Leistungsbudget in E2E, blockierend:</b> erste sinnvolle Anzeige unter 1,5 s, Modulwechsel unter 100 ms.</li>
+        <li><b>Sprachlatenz-Ziel p95 unter 3 s.</b> Gemessen im Log: 25–30 s pro Antwort
+            (<code>[VOICE] hermes-agent ok · 27164ms</code>). Reißt das Ziel, färbt das Error-Budget den
+            Sprachmodus sichtbar rot, statt dass der Operator wartet und rät.</li>
+        <li><b>Visuelle Regression:</b> ein Screenshot je Modul und Zustand, Abweichungen brechen den Build.</li>
+        <li><b>Tokens als einzige Farbquelle</b> — kein Hex-Literal im Komponentencode, per ESLint erzwungen.</li>
+      </ul>
+
+      <div class="accept"><span class="k">Abnahme</span><span class="v"><code>pnpm test:e2e</code> inklusive Budgets grün · Screenshot-Vergleiche sauber · axe ohne Verstöße</span></div>
+    </div>
+  </article>
+
+  <!-- ── BEWEIS ──────────────────────────────────────────────────────── -->
+  <h2><span class="num">DER BEWEIS</span>Ein Befehl, nicht ein Bericht</h2>
+  <p class="section-note">
+    Der Grund, warum dieses Projekt gestern „50 DONE / 0 PARTIAL" meldete, während die Suite rot war:
+    Der Fortschritt wurde erzählt statt gemessen. Ab hier gibt es genau eine Instanz, die das beantwortet.
+  </p>
+
+  <div class="proof">
+    <div class="cmd">pnpm verify</div>
+    <pre>"verify": "node scripts/doctor.mjs --tree
+  && node scripts/scan-secrets.mjs --fail-on-new
+  && pnpm exec eslint . --max-warnings=9999
+  && pnpm exec tsc -p tsconfig.json --noEmit
+  && pnpm exec tsc -p electron/tsconfig.json --noEmit
+  && pnpm gen:ipc --check
+  && pnpm test:cov
+  && node scripts/coverage-ratchet.mjs
+  && pnpm exec depcruise --config .dependency-cruiser.cjs electron src
+  && pnpm exec playwright test"</pre>
+    <p>
+      <b>Zwölf von zehn ist erreicht, wenn dieser Befehl grün ist, bei jedem Push in der CI läuft und
+      <code>main</code> ohne ihn nicht beschreibbar ist.</b> Ein Statusdokument kann das nicht ersetzen —
+      es hat es hier bereits versucht.
+    </p>
+  </div>
+
+  <!-- ── REIHENFOLGE ─────────────────────────────────────────────────── -->
+  <h2><span class="num">REIHENFOLGE</span>Drei Wochen, wenn nichts dazwischenkommt</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Zeitraum</th><th>Inhalt</th><th>Ergebnis</th></tr></thead>
+      <tbody>
+        <tr><td>Heute · 2 h</td><td>Phase 0</td><td>Die Kontrollen sagen wieder die Wahrheit</td></tr>
+        <tr><td>Woche 1</td><td>D2 · D5 · D1 auf die 10er-Stufe</td><td>Sicher und ehrlich</td></tr>
+        <tr><td>Woche 2</td><td>D3 · D4 · D6 — die Sperrklinken</td><td>Kann nicht mehr zurückfallen</td></tr>
+        <tr><td>Woche 3</td><td>D7 · D8</td><td>Auslieferbar und bedienbar</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:1.5rem;max-width:66ch">
+    <b>Wenn die Zeit knapp wird</b>, halten vier Sperrklinken am meisten: der IPC-Codegen (D4), der
+    Coverage-Ratchet (D3), <code>doctor --tree</code> (D1) und die Herkunftstypen (D5). Zusammen etwa ein
+    Arbeitstag — und sie machen genau die vier Fehlerklassen unmöglich, die dieses Projekt bereits dreimal
+    zurückgeworfen haben.
+  </p>
+
+  <p style="max-width:66ch;color:var(--dim)">
+    Eine ehrliche Einschränkung zum Schluss: Mechanismen kosten Wartung. Für einen Ein-Personen-Betrieb ist
+    die vollständige Liste oben eher eine Obergrenze als eine Pflicht. Die vier genannten Sperrklinken tragen
+    den Großteil der Wirkung; alles Weitere lohnt sich in dem Moment, in dem ein zweiter Mensch oder ein
+    Agent in dieses Repo schreibt.
+  </p>
+
+  <footer class="foot">
+    <span>Befehlsblatt: <code>docs/PLAN-12-VON-10.md</code></span>
+    <span>Vorbefund: <code>docs/FIXLIST-100.md</code></span>
+    <span>Stand: 25.08.2026 · gemessen, nicht geschätzt</span>
+  </footer>
+
+</div>

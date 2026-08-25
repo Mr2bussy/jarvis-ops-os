@@ -1,0 +1,41 @@
+{
+  "maxLines": 600,
+  "watch": [
+    "electron/main.ts",
+    "electron/ipc/registry.ts",
+    "src/screens/TradingContent.tsx",
+    "src/screens/Admin.tsx",
+    "src/screens/admin/ModelsTab.tsx",
+    "src/screens/admin/ConnectorsTab.tsx",
+    "src/screens/trading/ZeusBotPanel.tsx",
+    "electron/ipc/register-domain.ts",
+    "electron/ipc/register-config.ts"
+  ],
+  "exceptions": [
+    {
+      "path": "electron/main.ts",
+      "maxLines": 1800,
+      "reason": "Bootstrap + remaining inline IPC — register-config/domain/production/commerce/content extracted 2026-08-25 (ADR 0005)."
+    },
+    {
+      "path": "electron/ipc/registry.ts",
+      "maxLines": 1000,
+      "reason": "IPC channel table (~129 rows) — compact codegen; split by domain if it grows further."
+    },
+    {
+      "path": "src/screens/TradingContent.tsx",
+      "maxLines": 2900,
+      "reason": "Trading UI — ZeusBotPanel extracted (ADR 0006); further tab splits toward 600."
+    },
+    {
+      "path": "src/screens/Admin.tsx",
+      "maxLines": 1200,
+      "reason": "Admin shell — ModelsTab + ConnectorsTab extracted (ADR 0006)."
+    },
+    {
+      "path": "src/screens/trading/ZeusBotPanel.tsx",
+      "maxLines": 650,
+      "reason": "ZeusBot connector extracted from TradingContent (ADR 0006); further widget trim toward 600."
+    }
+  ]
+}

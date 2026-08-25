@@ -3,24 +3,9 @@ import { CYAN, CYAN_BRIGHT, AMBER } from '../theme';
 import { Stat } from './primitives';
 import VariantCinematic from './VariantCinematic';
 import { useSystemMetrics } from '../lib/system';
+import type { OSState, ScreenId } from './os-types';
 
-export type OSState = 'idle' | 'listening' | 'processing' | 'speaking';
-export type ScreenId =
-  | 'bridge'
-  | 'agents'
-  | 'workflows'
-  | 'briefings'
-  | 'trading'
-  | 'content'
-  | 'apps'
-  | 'system'
-  | 'console'
-  | 'arsenal'
-  | 'admin'
-  | 'integrations'
-  | 'code'
-  | 'evals'
-  | 'gateway';
+export type { OSState, ScreenId } from './os-types';
 
 export const NAV: { id: ScreenId; label: string; glyph: string; desc: string }[] = [
   { id: 'bridge', label: 'Bridge', glyph: '◇', desc: 'Operations overview' },
@@ -107,6 +92,9 @@ export function Sidebar({
           return (
             <button
               key={n.id}
+              data-nav={n.id}
+              aria-current={a ? 'page' : undefined}
+              aria-label={n.label}
               onClick={() => onNav(n.id)}
               style={{
                 display: 'grid',
@@ -241,6 +229,36 @@ export function TopBar({
   const cpuTxt = sys ? `${Math.round(sys.cpu_util * 100)}%` : '—';
   const ramTxt = sys ? `${Math.round(sys.mem_pct * 100)}%` : '—';
   const upTxt = sys ? `${Math.floor(sys.uptime / 3600)}h` : '—';
+  const [feedFailClosed, setFeedFailClosed] = useState(false);
+  const [feedReason, setFeedReason] = useState('');
+
+  useEffect(() => {
+    const bridge = window.jarvisBridge;
+    void bridge?.production
+      ?.dryRun?.()
+      .then((r) => {
+        const feed = (
+          r as {
+            feed?: { badge: string; label: string };
+            feedDetail?: { failClosed?: boolean; reason?: string };
+          }
+        )?.feed;
+        const detail = (r as { feedDetail?: { failClosed?: boolean; reason?: string } })?.feedDetail;
+        if (feed?.badge === 'fail' || detail?.failClosed) {
+          setFeedFailClosed(true);
+          setFeedReason(detail?.reason ?? feed?.label ?? 'UPDATE_FEED_URL missing');
+        }
+      })
+      .catch(() => {});
+    const unsub = bridge?.onUpdateFeedStatus?.((status) => {
+      setFeedFailClosed(Boolean(status.failClosed || (!status.feedUrl && status.packaged)));
+      setFeedReason(status.reason ?? 'UPDATE_FEED_URL missing');
+    });
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, []);
+
   return (
     <header
       style={{
@@ -270,6 +288,22 @@ export function TopBar({
         <Stat label="OP" value={sys?.user?.toUpperCase() || 'OPERATOR'} />
         <Stat label="HOST" value={sys?.host?.toUpperCase() || '—'} />
         <Stat label="GEO" value="DE/EU-W" />
+        {feedFailClosed ? (
+          <div
+            className="hud-label"
+            data-testid="update-feed-badge"
+            title={feedReason}
+            style={{
+              fontSize: 8,
+              padding: '4px 8px',
+              border: '1px solid var(--rose)',
+              color: 'var(--rose)',
+              letterSpacing: '0.14em',
+            }}
+          >
+            NO UPDATE FEED
+          </div>
+        ) : null}
       </div>
 
       <Clock />
@@ -351,14 +385,48 @@ export function VoiceOverlay({
     idle: 'var(--cyan-dim)',
     listening: CYAN_BRIGHT,
     processing: AMBER,
-    speaking: '#c8fb4e',
+    speaking: 'var(--jade)',
   };
+  const [voiceSloFail, setVoiceSloFail] = useState(false);
+  useEffect(() => {
+    const bridge = window.jarvisBridge as {
+      production?: { errorBudget?: () => Promise<{ voiceSloBreached?: boolean }> };
+    };
+    const tick = () => {
+      void bridge.production?.errorBudget?.().then((b) => setVoiceSloFail(Boolean(b?.voiceSloBreached)));
+    };
+    tick();
+    const t = setInterval(tick, 4000);
+    return () => clearInterval(t);
+  }, []);
   return (
     <div
       className="anim-fade-in"
       style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--ink-0)' }}
     >
       <VariantCinematic state={state} />
+
+      {voiceSloFail ? (
+        <div
+          data-testid="voice-overlay-slo-fail"
+          className="hud-label"
+          style={{
+            position: 'absolute',
+            top: 72,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1003,
+            color: 'var(--rose)',
+            border: '1px solid var(--rose)',
+            background: 'oklch(0.04 0.012 245 / 0.92)',
+            padding: '8px 20px',
+            letterSpacing: '0.28em',
+            fontSize: 10,
+          }}
+        >
+          ERROR BUDGET · VOICE LATENCY SLO EXCEEDED
+        </div>
+      ) : null}
 
       {/* ── Status bar ── */}
       <div

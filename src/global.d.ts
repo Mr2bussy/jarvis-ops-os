@@ -268,6 +268,58 @@ declare global {
         stop: () => Promise<{ ok: boolean; err?: string }>;
         deliver: (platform: string, text: string) => Promise<{ ok: boolean; err?: string }>;
       };
+
+      commerce?: {
+        sync: () => Promise<unknown>;
+      };
+      content?: {
+        publish: (payload: unknown) => Promise<unknown>;
+      };
+
+      production?: {
+        dryRun: () => Promise<unknown>;
+        errorBudget: () => Promise<{
+          availabilityPct: number;
+          budgetRemainingPct: number;
+          sloTargetPct: number;
+          requests: number;
+          failures: number;
+          avgVoiceE2eMs: number | null;
+          p95VoiceE2eMs?: number | null;
+          voiceSloMs?: number;
+          voiceSloBreached?: boolean;
+          modelProbeOk: boolean | null;
+          modelProbeLatencyMs: number | null;
+          hitlPending: number;
+          employeeFailures: number;
+        }>;
+        recordVoiceLatency: (
+          totalMs: number,
+          ttfbMs?: number,
+        ) => Promise<{ ok: boolean; voiceSloBreached?: boolean }>;
+        flags: () => Promise<Record<string, boolean>>;
+        setFlag: (key: string, value: boolean) => Promise<Record<string, boolean>>;
+        killSwitch: (on: boolean) => Promise<{ ok: boolean; on: boolean }>;
+        checkUpdates: () => Promise<unknown>;
+        downloadUpdate: () => Promise<unknown>;
+        installUpdate: () => Promise<unknown>;
+        crashDumpsPath: () => Promise<unknown>;
+        exportConfig: () => Promise<unknown>;
+        auditTrail: () => Promise<unknown>;
+        employeeHealth: () => Promise<unknown>;
+        employeeExecute: () => Promise<unknown>;
+        imapIdleStatus: () => Promise<unknown>;
+      };
+
+      onUpdateFeedStatus?: (
+        cb: (status: {
+          feedUrl: string | null;
+          source: string;
+          packaged: boolean;
+          failClosed: boolean;
+          reason?: string;
+        }) => void,
+      ) => (() => void) | void;
     };
   }
 }

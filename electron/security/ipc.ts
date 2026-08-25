@@ -59,3 +59,32 @@ export const ComposioExecute = z.object({
   userId: z.string().max(128).optional(),
   connectedAccountId: z.string().max(128).optional(),
 });
+
+/** Path-only transfer — prefer filesystem paths over IPC blobs. */
+export const PathOnlyPayload = z.object({
+  path: z.string().min(1).max(4096),
+});
+
+/** `apps:add` — launcher entry (kind must match preload / main). */
+export const AppsAddPayload = z.object({
+  name: z.string().min(1).max(256),
+  path: z.string().min(1).max(4096),
+  kind: z.enum(['exe', 'url', 'folder', 'cmd']),
+  tag: z.string().max(64).optional(),
+});
+
+const BLOB_KEYS = ['base64', 'blob', 'dataUrl', 'buffer'] as const;
+
+/**
+ * Reject blob-shaped file transfers at the IPC boundary (path-not-blob policy).
+ * Callers that need file bytes must pass a filesystem path instead.
+ */
+export function assertNoBlobPayload(raw: unknown): void {
+  if (raw == null || typeof raw !== 'object') return;
+  const o = raw as Record<string, unknown>;
+  for (const key of BLOB_KEYS) {
+    if (key in o && o[key] != null) {
+      throw new Error('path-not-blob: refuse blob/base64 file transfer — pass path only');
+    }
+  }
+}

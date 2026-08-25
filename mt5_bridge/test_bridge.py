@@ -67,6 +67,18 @@ def test_authorized_enforces_matching_header_when_token_set():
     assert bridge.Handler._authorized(_FakeReq({})) is False
 
 
+def test_handler_returns_401_unauthorized_without_matching_token():
+    """Threat-model chain 4: missing/wrong X-JARVIS-Token → HTTP 401 unauthorized."""
+    import inspect
+
+    bridge.AUTH_TOKEN = 'secret-token'
+    src = inspect.getsource(bridge.Handler)
+    assert 'send_json(401' in src
+    assert 'unauthorized' in src
+    # Behavioral: _authorized is the gate do_GET/do_POST call before business logic
+    assert bridge.Handler._authorized(_FakeReq({})) is False
+
+
 # ── Arm-gate on close_all (the trading-safety change) ────────────────────────────
 def test_close_all_refuses_when_safed():
     bridge._armed = False

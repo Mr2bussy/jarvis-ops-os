@@ -1,0 +1,226 @@
+name: Release
+
+# Tag-driven: `git tag v1.2.3 && git push origin v1.2.3` is the only way to cut a
+# release, so every artefact is traceable to exactly one commit.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  # electron-builder --publish always creates/updates the GitHub Release and
+  # uploads the installer; the checksum step attaches SHA256SUMS.txt to it.
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # Dependency-free, so a leaked credential kills the release before a
+      # toolchain is even installed — same rationale as in ci.yml.
+      - name: Secret scan (full tree)
+        run: node scripts/scan-secrets.mjs --all
+
+      # electron-builder derives the release tag from package.json's version. If
+      # the pushed tag disagreed, the installer would land on a *different*
+      # release than the one being tagged — silent and very confusing later.
+      - name: Tag must match package.json version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($tag -ne "v$version") {
+            Write-Error "Tag $tag does not match package.json version $version. Bump the version, commit, then re-tag."
+            exit 1
+          }
+          Write-Host "Releasing $tag from package.json version $version"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build renderer + main process
+        run: pnpm build
+
+      # A missing certificate must never fail the run: the signing cert lives with
+      # the operator, not in this repo, and an unsigned build is still a usable
+      # build. It just has to be *obvious* in the log which one was produced.
+      - name: Report signing status
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) {
+            Write-Host "::warning title=UNSIGNED BUILD::CSC_LINK secret is not set - this release will be UNSIGNED. Windows SmartScreen will warn on first run and the checksum in SHA256SUMS.txt is the only integrity proof. See docs/RELEASE.md to enable signing."
+            Write-Host "SIGNING: disabled (no CSC_LINK)"
+          } elseif ([string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) {
+            Write-Host "::warning title=UNSIGNED BUILD::CSC_LINK is set but CSC_KEY_PASSWORD is empty - signtool cannot open the .pfx, so the build will be UNSIGNED."
+            Write-Host "SIGNING: disabled (CSC_KEY_PASSWORD missing)"
+          } else {
+            Write-Host "SIGNING: enabled - signtool, sha256 (see build.win.signtoolOptions in package.json)"
+          }
+
+      - name: Package + publish installer
+        shell: pwsh
+        env:
+          # Required by --publish always to reach the GitHub Releases API.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Operator signing secrets (empty when absent — unsigned build still ships).
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Optional: document-only placeholder for packaged auto-update feed base URL.
+          # Operators set UPDATE_FEED_URL in Admin → Connections (safeStorage), not in repo.
+          UPDATE_FEED_URL: ${{ vars.UPDATE_FEED_URL }}
+        run: pnpm exec electron-builder --win --publish always
+
+      - name: Generate SBOM (CycloneDX-shaped scaffold)
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $comps = @()
+          foreach ($name in $pkg.dependencies.PSObject.Properties.Name) {
+            $comps += @{
+              type = 'library'
+              name = $name
+              version = $pkg.dependencies.$name
+              scope = 'required'
+            }
+          }
+          foreach ($name in $pkg.devDependencies.PSObject.Properties.Name) {
+            $comps += @{
+              type = 'library'
+              name = $name
+              version = $pkg.devDependencies.$name
+              scope = 'optional'
+            }
+          }
+          $sbom = @{
+            bomFormat = 'CycloneDX'
+            specVersion = '1.5'
+            version = 1
+            metadata = @{
+              timestamp = (Get-Date).ToUniversalTime().ToString('o')
+              component = @{
+                type = 'application'
+                name = $pkg.name
+                version = $pkg.version
+              }
+              tools = @(@{ name = 'jarvis-sbom-scaffold'; version = '1.0' })
+            }
+            components = $comps
+          }
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          $out = Join-Path 'release' 'SBOM.json'
+          $sbom | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $out -Encoding utf8
+          Copy-Item $out (Join-Path 'release' 'SBOM-scaffold.json') -Force
+          Write-Host "Wrote $out ($($comps.Count) components)"
+
+      # Always: dry-run proves the smoke mechanism without certs or a silent install.
+      # Missing CSC_* must never fail the release — see docs/CODE-SIGNING.md.
+      - name: Installer smoke (dry-run)
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          VERIFY_INSTALLER: ${{ vars.VERIFY_INSTALLER }}
+        run: pwsh -NoProfile -File scripts/installer-smoke.ps1 -DryRun
+
+      # Packaged safeStorage migration checklist (presence-only; never prints secrets).
+      - name: Packaged migration checklist smoke
+        shell: pwsh
+        run: node scripts/packaged-migration-smoke.mjs
+
+      # Connections presence matrix (always exit 0 — operator credentials are Zac).
+      - name: Connections smoke
+        shell: pwsh
+        run: node scripts/connections-smoke.mjs
+
+      # When CSC_LINK is present: unsigned artefact is REJECTED (mechanism proof for D7→12).
+      # Without CSC_LINK this step is skipped — remaining tooth is Zac's OV cert.
+      - name: Reject unsigned build when CSC_LINK present
+        if: ${{ secrets.CSC_LINK != '' }}
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          $exes = Get-ChildItem release -Filter '*.exe' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch 'uninst' }
+          if (-not $exes) {
+            Write-Error "CSC_LINK set but no release/*.exe to verify Authenticode"
+            exit 1
+          }
+          foreach ($exe in $exes) {
+            $sig = Get-AuthenticodeSignature -LiteralPath $exe.FullName
+            Write-Host ("{0}: Authenticode={1}" -f $exe.Name, $sig.Status)
+            if ($sig.Status -ne 'Valid') {
+              Write-Error "UNSIGNED REJECTED: $($exe.Name) Status=$($sig.Status) — CSC_LINK is set so signed publish is mandatory"
+              exit 1
+            }
+          }
+          Write-Host "SIGNING POLICY: unsigned build rejected — all artefacts Valid"
+
+      # Full silent install when signing secrets exist and/or VERIFY_INSTALLER=1.
+      # VERIFY_INSTALLER=1 → blocking. Secrets-only → continue-on-error (fail-soft).
+      - name: Installer smoke (full)
+        if: ${{ secrets.CSC_LINK != '' || vars.VERIFY_INSTALLER == '1' }}
+        shell: pwsh
+        continue-on-error: ${{ vars.VERIFY_INSTALLER != '1' }}
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          VERIFY_INSTALLER: ${{ vars.VERIFY_INSTALLER }}
+        run: pwsh -NoProfile -File scripts/installer-smoke.ps1 -SkipUninstall
+
+      # Reproducibility handshake for anyone downloading the installer: the hash
+      # is generated on the same runner that produced the file and published
+      # alongside it. Format is `sha256sum -c` compatible.
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          $artifacts = Get-ChildItem release -File |
+            Where-Object { $_.Extension -in '.exe', '.msi', '.zip', '.blockmap', '.yml', '.json' } |
+            Sort-Object Name
+          if (-not $artifacts) {
+            Write-Error "No release artefacts found in release/ - nothing to checksum."
+            exit 1
+          }
+          $lines = foreach ($a in $artifacts) {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $a.FullName).Hash.ToLower()
+            "$hash  $($a.Name)"
+          }
+          $out = Join-Path 'release' 'SHA256SUMS.txt'
+          Set-Content -LiteralPath $out -Value $lines -Encoding ascii
+          Write-Host "--- SHA256SUMS.txt ---"
+          Get-Content -LiteralPath $out | Write-Host
+
+      - name: Attach checksums to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" release/SHA256SUMS.txt release/SBOM.json release/SBOM-scaffold.json --clobber
+
+      # Second copy of the checksums (and the installer) on the workflow run
+      # itself, so they survive even if the release is later edited or deleted.
+      - name: Upload build artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-windows-installer
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
+            release/SBOM.json
+            release/SBOM-scaffold.json
+            release/SHA256SUMS.txt
+          if-no-files-found: error

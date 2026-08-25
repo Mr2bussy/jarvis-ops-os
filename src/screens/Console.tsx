@@ -7,6 +7,8 @@ import { CONSOLE_LOG } from '../data/os-data';
 import { LS, lsGet, lsSet, DEFAULT_CONTEXT, JARVIS_PERSONA } from '../lib/claude';
 import type { ConsoleLine } from '../lib/claude';
 import type { ScreenProps } from './Bridge';
+import { DegradedBanner } from '../components/DegradedBanner';
+import { unwrapComplete } from '../lib/complete-result';
 
 type ConsoleTab = 'JARVIS' | 'TERMINAL' | 'HTTP' | 'TOOLS';
 
@@ -905,12 +907,13 @@ function JarvisTab({
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [streamText, setStreamText] = useState('');
+  const [degraded, setDegraded] = useState<{ reason?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [history, busy]);
+  }, [history, busy, degraded]);
 
   async function send() {
     const text = input.trim();
@@ -922,6 +925,7 @@ function JarvisTab({
     setHistory(next);
     setInput('');
     setBusy(true);
+    setDegraded(null);
     setState('processing');
     const sid = 'cc-' + Date.now();
     let acc = '';
@@ -942,8 +946,10 @@ function JarvisTab({
       const reply = await window.jarvisBridge.completeStream({ messages, system: sys, maxTokens: 700 }, sid);
       window.jarvisBridge.offStreamChunk();
       setStreamText('');
+      const unwrapped = unwrapComplete(reply as never);
+      if (unwrapped.degraded) setDegraded({ reason: unwrapped.reason });
       const ts2 = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}:${String(new Date().getSeconds()).padStart(2, '0')}`;
-      const final = [...next, { who: 'JARVIS' as const, t: ts2, text: reply || acc }];
+      const final = [...next, { who: 'JARVIS' as const, t: ts2, text: unwrapped.text || acc }];
       setHistory(final);
       lsSet(LS.console, final.slice(-40));
       setState('speaking');
@@ -990,6 +996,7 @@ function JarvisTab({
         status="live"
         style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}
       >
+        {degraded ? <DegradedBanner reason={degraded.reason} /> : null}
         <div
           ref={scrollRef}
           className="nx-scroll"

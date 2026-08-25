@@ -18,6 +18,7 @@ release
 # test / coverage artifacts
 coverage
 .stryker-tmp
+stryker-tmp
 reports/mutation
 .pytest_cache
 **/__pycache__/

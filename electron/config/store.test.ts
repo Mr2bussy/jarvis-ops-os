@@ -8,7 +8,7 @@ const tmp = path.join(os.tmpdir(), 'jarvis-store-test-' + Math.random().toString
 // Mock electron so the store can be exercised without booting the app. The plain
 // base64 path (no encryption) keeps the round-trip deterministic across machines.
 vi.mock('electron', () => ({
-  app: { getPath: () => tmp },
+  app: { getPath: () => tmp, isPackaged: false },
   safeStorage: { isEncryptionAvailable: () => false },
 }));
 
@@ -61,5 +61,11 @@ describe('config store', () => {
     const t1 = ensureBridgeToken();
     expect(t1).toMatch(/^[0-9a-f]{48}$/);
     expect(ensureBridgeToken()).toBe(t1);
+  });
+
+  it('falls back to env when unpackaged', () => {
+    process.env.TEST_ENV_KEY = 'from-env';
+    expect(getDecryptedKey('TEST_ENV_KEY')).toBe('from-env');
+    delete process.env.TEST_ENV_KEY;
   });
 });

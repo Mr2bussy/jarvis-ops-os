@@ -1,0 +1,176 @@
+{
+  "generatedAt": "2026-08-25T13:11:07.334Z",
+  "note": "Ratchet baseline for hex literals in src/components — fail on new ids only",
+  "ids": [
+    "0e104f22fc23e99c",
+    "155ac59bd7b3b3b1",
+    "180044c75b5c385d",
+    "321a6ec719bef608",
+    "34706186c11bfab1",
+    "4ae4d6d6ba3648d5",
+    "50da5f2bd274212d",
+    "551ff74b1cf0c8bf",
+    "5789cdadcac4dd90",
+    "5f9bf629afb883a5",
+    "7e072e15cfc78a52",
+    "868a1a311eaa9760",
+    "87fccc90bb097b77",
+    "9782f00e4ccd9943",
+    "a6b0ee55caa3a57d",
+    "acb900010d858991",
+    "beb0712be1950fa2",
+    "c957d3242271215d",
+    "db436372b70fe3c9",
+    "df473a33e36b6602",
+    "e5bb7a1b01124b68",
+    "e814f7aa62d63225",
+    "ebe89325f14f6976",
+    "fe30a23fe81910c5"
+  ],
+  "details": [
+    {
+      "id": "fe30a23fe81910c5",
+      "file": "src/components/HarnessHitlModal.tsx",
+      "line": 127,
+      "match": "#f8717166"
+    },
+    {
+      "id": "db436372b70fe3c9",
+      "file": "src/components/HarnessHitlModal.tsx",
+      "line": 128,
+      "match": "#fca5a5"
+    },
+    {
+      "id": "155ac59bd7b3b3b1",
+      "file": "src/components/VariantCinematic.tsx",
+      "line": 75,
+      "match": "#A7F"
+    },
+    {
+      "id": "acb900010d858991",
+      "file": "src/components/primitives.tsx",
+      "line": 162,
+      "match": "#E0FBFF"
+    },
+    {
+      "id": "c957d3242271215d",
+      "file": "src/components/primitives.tsx",
+      "line": 168,
+      "match": "#E0FBFF"
+    },
+    {
+      "id": "beb0712be1950fa2",
+      "file": "src/components/primitives.tsx",
+      "line": 205,
+      "match": "#E0FBFF"
+    },
+    {
+      "id": "180044c75b5c385d",
+      "file": "src/components/shell.tsx",
+      "line": 515,
+      "match": "#ff4444aa"
+    },
+    {
+      "id": "868a1a311eaa9760",
+      "file": "src/components/shell.tsx",
+      "line": 522,
+      "match": "#ff6666"
+    },
+    {
+      "id": "0e104f22fc23e99c",
+      "file": "src/components/shell.tsx",
+      "line": 526,
+      "match": "#ffaaaa"
+    },
+    {
+      "id": "4ae4d6d6ba3648d5",
+      "file": "src/components/shell.tsx",
+      "line": 657,
+      "match": "#c8fb4e"
+    },
+    {
+      "id": "551ff74b1cf0c8bf",
+      "file": "src/components/shell.tsx",
+      "line": 657,
+      "match": "#ff6666"
+    },
+    {
+      "id": "a6b0ee55caa3a57d",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 77,
+      "match": "#03060B"
+    },
+    {
+      "id": "34706186c11bfab1",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 78,
+      "match": "#0c1a22"
+    },
+    {
+      "id": "50da5f2bd274212d",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 79,
+      "match": "#7ecddd"
+    },
+    {
+      "id": "e814f7aa62d63225",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 80,
+      "match": "#22D3EE"
+    },
+    {
+      "id": "87fccc90bb097b77",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 81,
+      "match": "#EF4444"
+    },
+    {
+      "id": "ebe89325f14f6976",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 82,
+      "match": "#10B981"
+    },
+    {
+      "id": "5f9bf629afb883a5",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 83,
+      "match": "#34D399"
+    },
+    {
+      "id": "321a6ec719bef608",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 84,
+      "match": "#4B5563"
+    },
+    {
+      "id": "df473a33e36b6602",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 85,
+      "match": "#06B6D4"
+    },
+    {
+      "id": "5789cdadcac4dd90",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 86,
+      "match": "#EF4444"
+    },
+    {
+      "id": "e5bb7a1b01124b68",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 128,
+      "match": "#0a1f26"
+    },
+    {
+      "id": "7e072e15cfc78a52",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 129,
+      "match": "#0a1f26"
+    },
+    {
+      "id": "9782f00e4ccd9943",
+      "file": "src/components/GodModeChart.tsx",
+      "line": 323,
+      "match": "#ffffff"
+    }
+  ]
+}

@@ -8,9 +8,21 @@ import { randomBytes } from 'node:crypto';
  * safeStorage-encrypted base64 (plain base64 fallback when encryption is unavailable).
  * Extracted from main.ts so the persistence/crypto logic is unit-testable without
  * booting Electron (mock `electron` in tests).
+ *
+ * Packaged builds (`app.isPackaged`) never fall back to process.env for secrets —
+ * keys must live in safeStorage (Admin → Connections). See docs/PACKAGED-SAFESTORAGE-MIGRATION.md.
  */
 export interface ConfigStore {
   [key: string]: string;
+}
+
+function allowEnvFallback(): boolean {
+  try {
+    // Unpackaged / tests (isPackaged undefined → allow).
+    return !app?.isPackaged;
+  } catch {
+    return true;
+  }
 }
 
 export function configStorePath(): string {
@@ -46,9 +58,10 @@ export function getDecryptedKey(name: string): string {
       }
       return Buffer.from(store[name], 'base64').toString('utf8');
     } catch {
-      /* fall through to env */
+      /* fall through */
     }
   }
+  if (!allowEnvFallback()) return '';
   return process.env[name] || '';
 }
 
@@ -65,7 +78,9 @@ export function deleteConfigKey(name: string): void {
 }
 
 export function hasConfigKey(name: string): boolean {
-  return Boolean(readConfigStore()[name] || process.env[name]);
+  if (readConfigStore()[name]) return true;
+  if (!allowEnvFallback()) return false;
+  return Boolean(process.env[name]);
 }
 
 // Stable shared secret for the local MT5 bridge. Generated once, persisted encrypted,
