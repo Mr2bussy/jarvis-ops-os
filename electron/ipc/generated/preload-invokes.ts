@@ -102,8 +102,7 @@ export const GENERATED_PRELOAD_INVOKES = {
     imapIdleStatus: (...args: unknown[]) => ipcRenderer.invoke('production:imap-idle-status', ...args),
     installUpdate: (...args: unknown[]) => ipcRenderer.invoke('production:install-update', ...args),
     killSwitch: (...args: unknown[]) => ipcRenderer.invoke('production:kill-switch', ...args),
-    recordVoiceLatency: (...args: unknown[]) =>
-      ipcRenderer.invoke('production:record-voice-latency', ...args),
+    recordVoiceLatency: (...args: unknown[]) => ipcRenderer.invoke('production:record-voice-latency', ...args),
     setFlag: (...args: unknown[]) => ipcRenderer.invoke('production:setFlag', ...args),
   },
   qwenComplete: (...args: unknown[]) => ipcRenderer.invoke('jarvis:qwen', ...args),

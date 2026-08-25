@@ -1,0 +1,11 @@
+# Generated / lock artifacts — fingerprint-checked by gen:ipc --check
+docs/IPC.md
+electron/ipc/generated/**
+
+# Build / vendor
+dist/**
+dist-electron/**
+release/**
+coverage/**
+playwright-report/**
+test-results/**
