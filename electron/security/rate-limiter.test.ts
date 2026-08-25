@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, it, expect } from 'vitest';
-import { TokenBucketRateLimiter } from './rate-limiter';
+import { TokenBucketRateLimiter, rateLimitOrThrow } from './rate-limiter';
 
 describe('token bucket rate limiter', () => {
   it('allows burst then limits', () => {
@@ -16,5 +16,22 @@ describe('token bucket rate limiter', () => {
     expect(lim.tryConsume('a')).toBe(true);
     expect(lim.tryConsume('b')).toBe(true);
     expect(lim.tryConsume('a')).toBe(false);
+  });
+
+  it('reset clears one key or all buckets', () => {
+    const lim = new TokenBucketRateLimiter({ capacity: 1, refillPerSec: 0 });
+    expect(lim.tryConsume('a')).toBe(true);
+    expect(lim.tryConsume('a')).toBe(false);
+    lim.reset('a');
+    expect(lim.tryConsume('a')).toBe(true);
+    expect(lim.tryConsume('b')).toBe(true);
+    lim.reset();
+    expect(lim.tryConsume('b')).toBe(true);
+  });
+
+  it('rateLimitOrThrow surfaces a clear error when exhausted', () => {
+    const lim = new TokenBucketRateLimiter({ capacity: 1, refillPerSec: 0 });
+    rateLimitOrThrow(lim, 'chat');
+    expect(() => rateLimitOrThrow(lim, 'chat')).toThrow(/Rate limit exceeded for chat/);
   });
 });

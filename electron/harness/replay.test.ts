@@ -33,8 +33,9 @@ afterEach(() => {
 /** Redaction is the load-bearing part of the replay log — everything else is plumbing. */
 describe('redactSecrets', () => {
   it('redacts an Anthropic key wherever it sits', () => {
-    const out = redactSecrets({ note: 'use sk-ant-api03-AAAABBBBCCCCDDDDEEEE for this call' }) as {
-      // secret-scan:allow
+    const out = redactSecrets({
+      note: 'use sk-ant-api03-AAAABBBBCCCCDDDDEEEE for this call', // secret-scan:allow
+    }) as {
       note: string;
     };
     expect(out.note).not.toContain('sk-ant-api03');

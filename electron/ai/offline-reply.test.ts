@@ -21,4 +21,10 @@ describe('offlineJarvisReply', () => {
     expect(r.text).toMatch(/Kein LLM erreichbar|Gemini|Ollama/i);
     expect(r.reason).toMatch(/gemini|ollama/i);
   });
+  it('greets and routes trading / help / hermes intents', () => {
+    expect(offlineJarvisReply('hello').text).toMatch(/Online|Hermes/i);
+    expect(offlineJarvisReply('zeus trade').text).toMatch(/Trading|Zeus|HITL/i);
+    expect(offlineJarvisReply('telegram hermes').text).toMatch(/Hermes|Telegram/i);
+    expect(offlineJarvisReply('hilfe bitte').text).toMatch(/Ask status|directive/i);
+  });
 });
