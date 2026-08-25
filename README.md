@@ -51,11 +51,11 @@ Details: [`docs/JARVIS-CAPABILITY-REPORT.md`](docs/JARVIS-CAPABILITY-REPORT.md),
 
 Zwei Metriken — nicht vermischen:
 
-| Metrik                                                                                      | Schätzung             | Quelle                                                                                             |
-| ------------------------------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------- |
-| **Richtung „12 von 10“** (maschinell erzwungene Gates: doctor, secrets, verify, ratchet, …) | ca. **82 %**          | [`docs/SCORECARD-12-VON-10.md`](docs/SCORECARD-12-VON-10.md) — D1–D8 avg 79/96; kein Claim „12/12“ |
-| **Ops-Shell nutzbar** (Launch, Harness, HITL, Trading-UI, Voice-Pfad)                       | hoch / produktionsnah | Capability Report                                                                                  |
-| **Vision Employees / Live-Integrationen**                                                   | deutlich niedriger    | Scaffolds + Keys/OAuth + Sidecars                                                                  |
+| Metrik                                                                                      | Schätzung             | Quelle                                                                                       |
+| ------------------------------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------- |
+| **Richtung „12 von 10“** (maschinell erzwungene Gates: doctor, secrets, verify, ratchet, …) | ca. **91 %**          | [`docs/SCORECARD-12-VON-10.md`](docs/SCORECARD-12-VON-10.md) — sum 87/96; kein Claim „12/12“ |
+| **Ops-Shell nutzbar** (Launch, Harness, HITL, Trading-UI, Voice-Pfad)                       | hoch / produktionsnah | Capability Report                                                                            |
+| **Vision Employees / Live-Integrationen**                                                   | deutlich niedriger    | Scaffolds + Keys/OAuth + Sidecars                                                            |
 
 **Voll live** braucht weiterhin Operator-seitig:
 
