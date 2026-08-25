@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>JARVIS golden shell (E2E fixture)</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #070912;
+        color: #e8eefc;
+      }
+      [data-testid='golden-root'] {
+        min-height: 100vh;
+        padding: 24px;
+      }
+      nav {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      [data-nav] {
+        padding: 8px 12px;
+        border: 1px solid #2a3550;
+      }
+      [data-screen-label] {
+        padding: 16px;
+        border: 1px solid #1e2a44;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-testid="golden-root">
+      <nav>
+        <button type="button" data-nav="bridge">Bridge</button>
+        <button type="button" data-nav="admin">Admin</button>
+        <button type="button" data-nav="console">Console</button>
+        <button type="button" data-nav="trading">Trading</button>
+      </nav>
+      <section data-screen-label="bridge">Bridge / Start / Voice</section>
+      <section data-screen-label="admin">Admin / Setup</section>
+      <section data-screen-label="console">Console / Chat</section>
+      <section data-screen-label="trading">Trading</section>
+    </div>
+  </body>
+</html>

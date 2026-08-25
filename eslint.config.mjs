@@ -59,5 +59,36 @@ export default tseslint.config(
       '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
+  {
+    // D5 — bare KPI / fake money literals in screens must not compile past eslint.
+    // Complements honesty-report.mjs --fail (wired in verify). Matches honesty fail rules:
+    // fabricated-money ($1,234+) and bare agent-count literals — not every `$` price tick.
+    files: ['src/screens/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/\\$\\s?\\d{1,3}(,\\d{3})+(\\.\\d+)?/]',
+          message:
+            'D5: fabricated money literal ($1,234+) — use Sourced/<Value>, or DEMO/catalog label (honesty-report).',
+        },
+        {
+          selector: 'TemplateElement[value.cooked=/\\$\\s?\\d{1,3}(,\\d{3})+/]',
+          message:
+            'D5: fabricated money in template — use Sourced/<Value> or DEMO-labeled catalog.',
+        },
+        {
+          selector: 'JSXText[value=/\\b(1[0-9]{2,3}|[2-9][0-9]{2,3})\\s+agents?\\b/i]',
+          message:
+            'D5: bare agent-count literal — use vault-measured Sourced value via <Value>.',
+        },
+        {
+          selector: 'Literal[value=/\\b(1[0-9]{2,3}|[2-9][0-9]{2,3})\\s+agents?\\b/i]',
+          message:
+            'D5: bare agent-count string literal — use vault-measured Sourced value via <Value>.',
+        },
+      ],
+    },
+  },
   prettier,
 );

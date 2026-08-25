@@ -219,10 +219,49 @@ declare global {
           connectedAccountId?: string;
         }) => Promise<unknown>;
         connections: () => Promise<unknown>;
+        initiate: (...args: unknown[]) => Promise<unknown>;
       };
 
       shell: {
         openExternal: (url: string) => Promise<boolean>;
+      };
+
+      browser: {
+        install: (...args: unknown[]) => Promise<unknown>;
+      };
+
+      employees: {
+        emailFetchInbox: (...args: unknown[]) => Promise<unknown>;
+      };
+
+      activateVaultAgents: (...args: unknown[]) => Promise<unknown>;
+      freeTranscribe: (...args: unknown[]) => Promise<unknown>;
+      getVaultPaths: (...args: unknown[]) => Promise<unknown>;
+      setAgentsPath: (...args: unknown[]) => Promise<unknown>;
+      systemSelfTest: (...args: unknown[]) => Promise<unknown>;
+      voiceSelfTest: (...args: unknown[]) => Promise<unknown>;
+      voiceSession: (...args: unknown[]) => Promise<unknown>;
+      voicePickFiles: (...args: unknown[]) => Promise<unknown>;
+
+      memory: {
+        embedSearch: (...args: unknown[]) => Promise<unknown>;
+        embedUpsert: (...args: unknown[]) => Promise<unknown>;
+      };
+
+      trading: {
+        ccxtOhlcv: (...args: unknown[]) => Promise<unknown>;
+        ccxtStatus: (...args: unknown[]) => Promise<unknown>;
+        ccxtTicker: (...args: unknown[]) => Promise<unknown>;
+        econCalendar: (...args: unknown[]) => Promise<unknown>;
+        inNewsWindow: (...args: unknown[]) => Promise<unknown>;
+        journalAdd: (...args: unknown[]) => Promise<unknown>;
+        journalList: (...args: unknown[]) => Promise<unknown>;
+        journalWeekly: (...args: unknown[]) => Promise<unknown>;
+      };
+
+      voice: {
+        piperSpeak: (...args: unknown[]) => Promise<unknown>;
+        piperStatus: (...args: unknown[]) => Promise<unknown>;
       };
 
       harness: {

@@ -3,19 +3,24 @@
   "watch": [
     "electron/main.ts",
     "electron/ipc/registry.ts",
+    "electron/ipc/register-apps.ts",
+    "electron/ipc/register-domain.ts",
+    "electron/ipc/register-config.ts",
     "src/screens/TradingContent.tsx",
     "src/screens/Admin.tsx",
     "src/screens/admin/ModelsTab.tsx",
     "src/screens/admin/ConnectorsTab.tsx",
     "src/screens/trading/ZeusBotPanel.tsx",
-    "electron/ipc/register-domain.ts",
-    "electron/ipc/register-config.ts"
+    "src/screens/trading/GodModeTab.tsx",
+    "src/screens/trading/TerminalWidgets.tsx",
+    "src/screens/trading/StrategiesPanel.tsx",
+    "src/screens/trading/widget-registry.ts"
   ],
   "exceptions": [
     {
       "path": "electron/main.ts",
-      "maxLines": 1800,
-      "reason": "Bootstrap + remaining inline IPC — register-config/domain/production/commerce/content extracted 2026-08-25 (ADR 0005)."
+      "maxLines": 1550,
+      "reason": "Bootstrap after register-apps extract 2026-08-25 — ratchet from 1800 toward 600 (ADR 0005)."
     },
     {
       "path": "electron/ipc/registry.ts",
@@ -24,8 +29,8 @@
     },
     {
       "path": "src/screens/TradingContent.tsx",
-      "maxLines": 2900,
-      "reason": "Trading UI — ZeusBotPanel extracted (ADR 0006); further tab splits toward 600."
+      "maxLines": 1400,
+      "reason": "Trading shell after GodMode + TerminalWidgets extract (ADR 0006 follow-up) — was 2900/6954; ratchet toward 600."
     },
     {
       "path": "src/screens/Admin.tsx",
@@ -34,8 +39,18 @@
     },
     {
       "path": "src/screens/trading/ZeusBotPanel.tsx",
-      "maxLines": 650,
-      "reason": "ZeusBot connector extracted from TradingContent (ADR 0006); further widget trim toward 600."
+      "maxLines": 850,
+      "reason": "Connector + live data after StrategiesPanel + widget-registry extract — was 1349/650 false ceiling; ratchet toward 600."
+    },
+    {
+      "path": "src/screens/trading/GodModeTab.tsx",
+      "maxLines": 1800,
+      "reason": "GodMode agent team extracted from TradingContent 2026-08-25 — further prompt/data splits toward 600."
+    },
+    {
+      "path": "src/screens/trading/TerminalWidgets.tsx",
+      "maxLines": 3200,
+      "reason": "Terminal W* widgets extracted from TradingContent — next: per-widget modules toward 600."
     }
   ]
 }

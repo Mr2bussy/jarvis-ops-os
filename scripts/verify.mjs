@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // @ts-nocheck
 /**
- * pnpm verify — chains Sperrklinken; heavy e2e only when VERIFY_E2E=1.
+ * pnpm verify — chains Sperrklinken.
+ * Playwright: CI defaults VERIFY_E2E=1; local opt-in via VERIFY_E2E=1.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -10,6 +11,14 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// D8: CI always runs golden E2E gate unless explicitly skipped.
+if (process.env.CI === 'true' && process.env.VERIFY_E2E == null && process.env.VERIFY_SKIP_E2E !== '1') {
+  process.env.VERIFY_E2E = '1';
+}
+if (process.env.VERIFY_E2E === '1' && process.env.JARVIS_E2E_STUB == null) {
+  process.env.JARVIS_E2E_STUB = '1';
+}
 
 /**
  * @param {string} label
@@ -53,6 +62,10 @@ function main() {
       run('audit-gate (high/critical)', 'node', ['scripts/audit-gate.mjs'], {
         requiredFile: 'scripts/audit-gate.mjs',
       }),
+    () =>
+      run('electron-security-audit (D2)', 'node', ['scripts/electron-security-audit.mjs'], {
+        requiredFile: 'scripts/electron-security-audit.mjs',
+      }),
     () => run('eslint', 'pnpm', ['exec', 'eslint', '.', '--max-warnings=9999']),
     () =>
       run('lint:hex-components', 'node', ['scripts/lint-no-hex.mjs'], {
@@ -85,6 +98,14 @@ function main() {
       run('honesty-report --fail', 'node', ['scripts/honesty-report.mjs', '--fail'], {
         requiredFile: 'scripts/honesty-report.mjs',
       }),
+    () =>
+      run('check-screen-kpi-literals (D5)', 'node', ['scripts/check-screen-kpi-literals.mjs'], {
+        requiredFile: 'scripts/check-screen-kpi-literals.mjs',
+      }),
+    () =>
+      run('check-branch-protection (D3 warn)', 'node', ['scripts/check-branch-protection.mjs'], {
+        requiredFile: 'scripts/check-branch-protection.mjs',
+      }),
     () => runEvalOptional(),
     () =>
       run('packaged-migration-smoke', 'node', ['scripts/packaged-migration-smoke.mjs'], {
@@ -114,8 +135,9 @@ function main() {
 
 /**
  * Playwright:
- * - Default SKIP
- * - VERIFY_E2E=1 → golden-five stubs (JARVIS_E2E_STUB=1 default) blocking
+ * - Local default SKIP unless VERIFY_E2E=1
+ * - CI: VERIFY_E2E defaults to 1 (see top of file)
+ * - JARVIS_E2E_STUB=1 → golden-five with Chromium page-load + first-paint (blocking)
  * - JARVIS_E2E_STUB=0 → full playwright suite (needs Electron host)
  */
 function runPlaywrightGate() {
@@ -125,7 +147,7 @@ function runPlaywrightGate() {
   }
   if (process.env.VERIFY_E2E !== '1') {
     console.log(
-      'verify: SKIP playwright (set VERIFY_E2E=1; stubs via JARVIS_E2E_STUB=1)',
+      'verify: SKIP playwright (set VERIFY_E2E=1 or run under CI; stubs via JARVIS_E2E_STUB=1)',
     );
     return 0;
   }
@@ -139,7 +161,7 @@ function runPlaywrightGate() {
   }
   const stub = process.env.JARVIS_E2E_STUB !== '0';
   if (stub) {
-    console.log('\n── verify: playwright golden-five stubs (JARVIS_E2E_STUB=1) ──');
+    console.log('\n── verify: playwright golden-five (page-load + first-paint, JARVIS_E2E_STUB=1) ──');
     const r = spawnSync(
       'pnpm',
       ['exec', 'playwright', 'test', 'e2e/golden-five-flows.spec.ts'],
@@ -147,11 +169,11 @@ function runPlaywrightGate() {
         cwd: ROOT,
         stdio: 'inherit',
         shell: true,
-        env: { ...process.env, JARVIS_E2E_STUB: '1' },
+        env: { ...process.env, JARVIS_E2E_STUB: '1', VERIFY_E2E: '1' },
       },
     );
     const code = r.status ?? 1;
-    if (code !== 0) console.error(`verify: FAILED at playwright stubs (exit ${code})`);
+    if (code !== 0) console.error(`verify: FAILED at playwright golden-five (exit ${code})`);
     return code;
   }
   if (!existsSync(resolve(ROOT, 'node_modules/electron'))) {

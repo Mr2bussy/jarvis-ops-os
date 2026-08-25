@@ -1,0 +1,6 @@
+{
+  "note": "Allowlisted findings for electron-security-audit / electronegativity. Empty = fail on any HIGH static hit. Electronegativity package optional — static CSP/webPreferences gate is the required D2 lock.",
+  "findings": [],
+  "electronegativity": [],
+  "ignoreToolErrors": false
+}

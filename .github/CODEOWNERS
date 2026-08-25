@@ -1,0 +1,5 @@
+# CODEOWNERS — soft review signal for D3 while GitHub Pro/public is unavailable.
+# Classic "require review from Code Owners" is Pro-gated on private repos (same 403 as branch protection).
+# This file still documents ownership and surfaces in PRs when the feature unlocks.
+
+* @Mr2bussy

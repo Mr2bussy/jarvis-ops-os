@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+env:
+  VERIFY_E2E: "1"
+  JARVIS_E2E_STUB: "1"
+
 jobs:
   quality:
     runs-on: windows-latest
@@ -19,8 +23,6 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      # Runs before install on purpose: the scanner is dependency-free, so a leaked
-      # credential fails the build in seconds instead of after a full toolchain setup.
       - name: Secret scan (full tree, fail on new)
         run: node scripts/scan-secrets.mjs --all --fail-on-new
 
@@ -36,10 +38,9 @@ jobs:
       - name: Audit gate (high/critical or documented exceptions)
         run: node scripts/audit-gate.mjs
 
-      # The remaining warnings are knowingly tolerated: eslint.config.mjs grades
-      # legacy/stylistic noise as `warn` and correctness bugs as `error`. Dropping the
-      # `|| true` therefore makes every ESLint *error* blocking from now on, while the
-      # high --max-warnings cap keeps the warning backlog from failing the build.
+      - name: Electron security audit (D2 blocking)
+        run: node scripts/electron-security-audit.mjs
+
       - name: Lint (errors block, legacy warnings tolerated)
         run: pnpm exec eslint . --max-warnings=9999
 
@@ -49,7 +50,6 @@ jobs:
       - name: Typecheck (electron)
         run: pnpm exec tsc -p electron/tsconfig.json --noEmit
 
-      # Optional gates: skip when scripts are not yet on the branch (verify.mjs does the same).
       - name: IPC registry drift check
         run: |
           if (Test-Path scripts/gen-ipc.mjs) { pnpm gen:ipc --check } else { Write-Host "SKIP gen:ipc (missing script)" }
@@ -61,6 +61,14 @@ jobs:
       - name: File size budget
         run: |
           if (Test-Path scripts/check-file-size.mjs) { pnpm check:size } else { Write-Host "SKIP check:size (missing script)" }
+
+      - name: Honesty + screen KPI literals (D5)
+        run: |
+          node scripts/honesty-report.mjs --fail
+          node scripts/check-screen-kpi-literals.mjs
+
+      - name: Branch protection status (D3 warn)
+        run: node scripts/check-branch-protection.mjs
 
       - name: Security suite (allowlist + threat + csp + fuzz)
         run: pnpm test:security
@@ -74,10 +82,15 @@ jobs:
       - name: Production build
         run: pnpm build
 
-      - name: Electron security scan (non-blocking; promote to blocking once triaged)
-        run: pnpm exec electronegativity -i . || true
+      - name: Install Playwright Chromium (golden E2E)
+        run: pnpm exec playwright install chromium
 
-  # D3 flaky-gate: dedicated job runs the unit suite 3×; any failure fails verify.
+      - name: Golden five E2E (page-load + first-paint)
+        run: pnpm exec playwright test e2e/golden-five-flows.spec.ts
+        env:
+          VERIFY_E2E: "1"
+          JARVIS_E2E_STUB: "1"
+
   flaky:
     runs-on: windows-latest
     steps:
@@ -106,9 +119,6 @@ jobs:
       - name: Pytest
         run: python -m pytest mt5_bridge -q
 
-  # Named status check for branch protection (docs/BRANCH-PROTECTION.md).
-  # Aggregates quality + flaky + python-bridge so only one context must be required.
-  # enforce_admins stays false when Zac applies the rule — see BRANCH-PROTECTION.md.
   verify:
     name: verify
     runs-on: windows-latest
@@ -116,6 +126,3 @@ jobs:
     steps:
       - name: All required CI jobs passed
         run: echo "verify gate OK (quality + flaky + python-bridge)"
-
-# release.yml (separate, on: tag) would run `electron-builder --win --publish always`
-# with CSC_LINK / CSC_KEY_PASSWORD secrets for code signing - see PATH_TO_9.md.

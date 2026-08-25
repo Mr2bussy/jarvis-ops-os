@@ -519,18 +519,18 @@ export function VoiceOverlay({
             textAlign: 'center',
             maxWidth: 600,
             background: 'oklch(0.08 0.02 25 / 0.95)',
-            border: '1px solid #ff4444aa',
+            border: '1px solid var(--rose)',
             padding: '10px 24px',
             borderRadius: 4,
           }}
         >
           <div
             className="hud-label"
-            style={{ fontSize: 9, color: '#ff6666', letterSpacing: '0.5em', marginBottom: 4 }}
+            style={{ fontSize: 9, color: 'var(--rose)', letterSpacing: '0.5em', marginBottom: 4 }}
           >
             ⚠ ERROR
           </div>
-          <div className="font-mono" style={{ fontSize: 11, color: '#ffaaaa', letterSpacing: '0.06em' }}>
+          <div className="font-mono" style={{ fontSize: 11, color: 'var(--rose)', letterSpacing: '0.06em' }}>
             {micError}
           </div>
         </div>
@@ -661,7 +661,7 @@ function DiagRow({
   pending?: boolean;
   detail?: string;
 }) {
-  const col = pending ? 'var(--cyan-dim)' : ok ? '#c8fb4e' : '#ff6666';
+  const col = pending ? 'var(--cyan-dim)' : ok ? 'var(--jade)' : 'var(--rose)';
   const sym = pending ? '○' : ok ? '●' : '✕';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>

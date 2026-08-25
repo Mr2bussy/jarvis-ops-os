@@ -136,7 +136,7 @@ export default function VariantCinematic({ state }: { state: OSState }) {
               className="font-mono"
               style={{ fontSize: 10, color: 'var(--cyan-dim)', letterSpacing: '0.22em', marginTop: 4 }}
             >
-              SESSION · #A7F-2204
+              SESSION · A7F-2204
             </div>
           </div>
         </div>

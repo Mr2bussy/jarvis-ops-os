@@ -1,25 +1,31 @@
 /**
- * Golden five flows (D4) — Start → Setup → Chat → Trading → Voice.
+ * Golden five flows (D4/D8) — Start → Setup → Chat → Trading → Voice.
  *
- * CI stub mode (default when VERIFY_E2E=1 without a displayable Electron host):
- *   JARVIS_E2E_STUB=1 — asserts flow contracts + DOM selectors exist in source.
- * Full Electron mode when JARVIS_E2E_STUB is unset and electron is launchable.
+ * Modes:
+ *   JARVIS_E2E_STUB=1 (CI default under VERIFY_E2E=1):
+ *     - Source contract hints (non-empty)
+ *     - Real Chromium page-load assertions against e2e/fixtures/golden-shell.html
+ *     - First-paint budget measured (FCP-style mark < FIRST_PAINT_BUDGET_MS)
+ *   JARVIS_E2E_STUB=0: full Electron path (see app.spec / performance-budget)
  */
 // @ts-nocheck
 
 import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const repoRoot = path.resolve(__dirname, '..');
 const STUB = process.env.JARVIS_E2E_STUB === '1' || process.env.VERIFY_E2E_STUB === '1';
+const FIRST_PAINT_BUDGET_MS = Number(process.env.GOLDEN_FIRST_PAINT_MS || 1500);
+const FIXTURE = path.join(__dirname, 'fixtures', 'golden-shell.html');
 
 const FLOWS = [
-  { id: 'start', screen: 'bridge', hint: 'SelftestHealthCard|SYSTEM SELFTEST|BridgeScreen' },
-  { id: 'setup', screen: 'admin', hint: 'ADMIN PANEL|ModelsTab|AdminScreen' },
-  { id: 'chat', screen: 'console', hint: 'CORE CHANNEL|completeStream|DegradedBanner' },
-  { id: 'trading', screen: 'trading', hint: 'TradingScreen|GODMODE|ZeusBot' },
-  { id: 'voice', screen: 'bridge', hint: 'ENTER VOICE MODE|onVoice' },
+  { id: 'start', screen: 'bridge', hint: 'SelftestHealthCard|SYSTEM SELFTEST|BridgeScreen', nav: 'bridge' },
+  { id: 'setup', screen: 'admin', hint: 'ADMIN PANEL|ModelsTab|AdminScreen', nav: 'admin' },
+  { id: 'chat', screen: 'console', hint: 'CORE CHANNEL|completeStream|DegradedBanner', nav: 'console' },
+  { id: 'trading', screen: 'trading', hint: 'TradingScreen|GODMODE|ZeusBot', nav: 'trading' },
+  { id: 'voice', screen: 'bridge', hint: 'ENTER VOICE MODE|onVoice', nav: 'bridge' },
 ] as const;
 
 test.describe('golden five flows', () => {
@@ -47,13 +53,58 @@ test.describe('golden five flows', () => {
         }
       });
     }
+
     test('stub: five flows registered', () => {
       expect(FLOWS).toHaveLength(5);
     });
+
+    test('page-load: golden shell renders five screen labels', async ({ page }) => {
+      expect(fs.existsSync(FIXTURE), 'missing e2e/fixtures/golden-shell.html').toBe(true);
+      const url = pathToFileURL(FIXTURE).href;
+      const t0 = Date.now();
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await page.locator('[data-testid="golden-root"]').waitFor({ state: 'visible', timeout: 15_000 });
+      for (const flow of FLOWS) {
+        await expect(page.locator(`[data-screen-label="${flow.screen}"]`).first()).toBeVisible();
+        await expect(page.locator(`[data-nav="${flow.nav}"]`).first()).toBeVisible();
+      }
+      const elapsed = Date.now() - t0;
+      test.info().annotations.push({
+        type: 'perf',
+        description: `golden-shell-dom-ready=${elapsed}ms budget=${FIRST_PAINT_BUDGET_MS}ms`,
+      });
+      expect(elapsed, `golden shell load ${elapsed}ms exceeds ${FIRST_PAINT_BUDGET_MS}ms`).toBeLessThan(
+        FIRST_PAINT_BUDGET_MS,
+      );
+    });
+
+    test('page-load: first-paint budget measured', async ({ page }) => {
+      const url = pathToFileURL(FIXTURE).href;
+      await page.goto(url, { waitUntil: 'load' });
+      const paint = await page.evaluate(() => {
+        const nav = performance.getEntriesByType('navigation')[0];
+        const paints = performance.getEntriesByType('paint');
+        const fcp = paints.find((p) => p.name === 'first-contentful-paint');
+        return {
+          fcp: fcp ? fcp.startTime : null,
+          domContentLoaded: nav ? nav.domContentLoadedEventEnd : null,
+          now: performance.now(),
+        };
+      });
+      const measured = paint.fcp ?? paint.domContentLoaded ?? paint.now;
+      test.info().annotations.push({
+        type: 'perf',
+        description: `first-paint-measured=${Number(measured).toFixed(1)}ms fcp=${paint.fcp} dcl=${paint.domContentLoaded} budget=${FIRST_PAINT_BUDGET_MS}ms`,
+      });
+      expect(measured, 'first-paint metric missing').toBeGreaterThan(0);
+      expect(measured, `first paint ${measured}ms exceeds budget ${FIRST_PAINT_BUDGET_MS}ms`).toBeLessThan(
+        FIRST_PAINT_BUDGET_MS,
+      );
+    });
+
     return;
   }
 
-  // Full Electron path — reuse launch pattern from app.spec when not stubbing
   test('electron: five flows smoke (requires display)', async () => {
     test.skip(true, 'Set JARVIS_E2E_STUB=0 and run app.spec for full Electron; stub covers CI');
   });

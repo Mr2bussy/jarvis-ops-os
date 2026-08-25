@@ -1,5 +1,7 @@
 # Branch protection on `main`
 
+<!-- branch-protection-check: 2026-08-25 · STATUS: HTTP 403 — classic branch protection unavailable on private free-tier (needs Pro or public) · CODEOWNERS present (soft review signal; not a Pro require-review lock) · rulesets also 403 -->
+
 ## Status (2026-08-25)
 
 Remote: `https://github.com/Mr2bussy/jarvis-ops-os` (private).  
@@ -10,6 +12,9 @@ Remote: `https://github.com/Mr2bussy/jarvis-ops-os` (private).
 > Upgrade to GitHub Pro or make this repository public to enable this feature.
 
 Until Zac upgrades the plan **or** makes the repo public, GitHub will not store a server-side require-check rule. Local + CI gates still fail hard (`pnpm verify`, job `verify`).
+
+**Free-tier substitute (not D3=12):** `.github/CODEOWNERS` documents ownership. Require-review-from-Code-Owners is the same Pro/public gate — confirmed via `gh api …/rulesets` → 403.  
+Machine check: `node scripts/check-branch-protection.mjs` (warn-only in verify; `BRANCH_PROTECTION_STRICT=1` fails).
 
 ## Required status check name
 
@@ -60,8 +65,9 @@ GitHub → **Settings → Branches → Add branch protection rule** → pattern 
 ## Verify
 
 ```bash
-gh api repos/Mr2bussy/jarvis-ops-os/branches/main/protection --jq ".required_status_checks.contexts"
-# expect: ["verify"]
+node scripts/check-branch-protection.mjs
+gh api repos/Mr2bussy/jarvis-ops-os/branches/main/protection
+# expect: ["verify"] contexts when unlocked; today: HTTP 403
 ```
 
 If this still returns 403, the plan/visibility blocker above is still active — document the date, do not claim D3=12 for branch-protection alone.
