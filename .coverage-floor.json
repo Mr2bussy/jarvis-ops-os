@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-08-25T09:15:21.214Z",
+  "generatedAt": "2026-08-25T13:27:14.511Z",
   "source": "coverage/coverage-summary.json",
   "metrics": {
-    "lines": 72.42,
-    "statements": 72.42,
-    "functions": 87.34,
-    "branches": 81.86
+    "lines": 92.5,
+    "statements": 92.5,
+    "functions": 93.44,
+    "branches": 85.66
   }
 }

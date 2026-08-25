@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { classifyCommand, DEFAULT_ALLOWLIST } from './command-allowlist';
+import {
+  classifyCommand,
+  DEFAULT_ALLOWLIST,
+  isAllowlistedReadPath,
+  looksLikePathArg,
+  tokenizeCommand,
+} from './command-allowlist';
 
 describe('classifyCommand — fast path', () => {
   it('waves through read-only inspection commands', () => {
@@ -109,4 +115,30 @@ describe('classifyCommand — path traversal fuzz', () => {
       expect(v.allowed).toBe(false);
     });
   }
+});
+
+describe('classifyCommand — tokenize + path roots (mutation killers)', () => {
+  it('allows type/cat only for a single in-root path', () => {
+    const roots = [process.cwd()];
+    const rel = 'package.json';
+    const v = classifyCommand(`type ${rel}`, { pathRoots: roots });
+    expect(v.allowed).toBe(true);
+    expect(classifyCommand('type a.txt b.txt', { pathRoots: roots }).allowed).toBe(false);
+    expect(classifyCommand('cat', { pathRoots: roots }).allowed).toBe(false);
+  });
+
+  it('rejects URI and device paths on the read fast path', () => {
+    const roots = [process.cwd()];
+    expect(isAllowlistedReadPath('file:///etc/passwd', roots)).toBe(false);
+    expect(isAllowlistedReadPath('\\\\?\\C:\\Windows', roots)).toBe(false);
+    expect(isAllowlistedReadPath('http://evil', roots)).toBe(false);
+    expect(looksLikePathArg('-v')).toBe(false);
+    expect(looksLikePathArg('/all')).toBe(false);
+    expect(looksLikePathArg('C:\\Windows\\a.txt')).toBe(true);
+  });
+
+  it('tokenizeCommand respects simple quotes', () => {
+    expect(tokenizeCommand(`type "my file.txt"`)).toEqual(['type', 'my file.txt']);
+    expect(tokenizeCommand(`cat 'x y'`)).toEqual(['cat', 'x y']);
+  });
 });

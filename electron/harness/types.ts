@@ -104,6 +104,8 @@ export interface RefineRecord {
 export interface BenchmarkCaseResult {
   id: string;
   success: boolean;
+  /** Explicit outcome; skipped cases must not count as failures. */
+  outcome?: 'pass' | 'fail' | 'skipped';
   turns: number;
   tokensIn: number;
   tokensOut: number;
@@ -128,7 +130,7 @@ export interface BenchmarkRunResult {
   manifest: Record<string, unknown>;
 }
 
-export type RiskClass = 'read' | 'write' | 'shell' | 'trading' | 'destructive';
+export type RiskClass = 'read' | 'write' | 'shell' | 'trading' | 'browser' | 'destructive';
 
 export interface RiskAssessment {
   class: RiskClass;

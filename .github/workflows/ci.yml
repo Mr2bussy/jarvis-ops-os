@@ -27,10 +27,16 @@ jobs:
       - name: Doctor (tree hygiene)
         run: node scripts/doctor.mjs --tree
 
+      - name: Doctor self-test (exit-code fixtures)
+        run: node scripts/doctor.mjs --self-test
+
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # The 76 remaining warnings are knowingly tolerated: eslint.config.mjs grades
+      - name: Audit gate (high/critical or documented exceptions)
+        run: node scripts/audit-gate.mjs
+
+      # The remaining warnings are knowingly tolerated: eslint.config.mjs grades
       # legacy/stylistic noise as `warn` and correctness bugs as `error`. Dropping the
       # `|| true` therefore makes every ESLint *error* blocking from now on, while the
       # high --max-warnings cap keeps the warning backlog from failing the build.
@@ -56,6 +62,9 @@ jobs:
         run: |
           if (Test-Path scripts/check-file-size.mjs) { pnpm check:size } else { Write-Host "SKIP check:size (missing script)" }
 
+      - name: Security suite (allowlist + threat + csp + fuzz)
+        run: pnpm test:security
+
       - name: Unit tests + coverage
         run: pnpm test:cov
 
@@ -67,6 +76,23 @@ jobs:
 
       - name: Electron security scan (non-blocking; promote to blocking once triaged)
         run: pnpm exec electronegativity -i . || true
+
+  # D3 flaky-gate: dedicated job runs the unit suite 3×; any failure fails verify.
+  flaky:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Unit tests ×3 (flaky gate)
+        run: pnpm test:flaky
 
   python-bridge:
     runs-on: windows-latest
@@ -81,15 +107,15 @@ jobs:
         run: python -m pytest mt5_bridge -q
 
   # Named status check for branch protection (docs/BRANCH-PROTECTION.md).
-  # Aggregates quality + python-bridge so only one context must be required.
+  # Aggregates quality + flaky + python-bridge so only one context must be required.
   # enforce_admins stays false when Zac applies the rule — see BRANCH-PROTECTION.md.
   verify:
     name: verify
     runs-on: windows-latest
-    needs: [quality, python-bridge]
+    needs: [quality, flaky, python-bridge]
     steps:
       - name: All required CI jobs passed
-        run: echo "verify gate OK (quality + python-bridge)"
+        run: echo "verify gate OK (quality + flaky + python-bridge)"
 
 # release.yml (separate, on: tag) would run `electron-builder --win --publish always`
 # with CSC_LINK / CSC_KEY_PASSWORD secrets for code signing - see PATH_TO_9.md.

@@ -78,6 +78,16 @@ export async function executeHarnessTool(
     case 'shell_exec':
       return fail('shell_exec disabled in harness — use Advanced Mode console separately');
 
+    case 'browser_task': {
+      // Catalog advertises the tool; wiring lands via browser bridge deps.
+      // Until configured, refuse honestly so the agent does not invent success.
+      return fail('browser_task not configured — browser bridge unavailable');
+    }
+
+    case 'web_search': {
+      return fail('web_search not configured — search provider unavailable');
+    }
+
     default:
       return fail(`Unknown tool: ${call.name}`);
   }

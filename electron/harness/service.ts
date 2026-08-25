@@ -7,14 +7,27 @@ import { MemorySearchIndex, draftSkillFromSession } from './memory/search-index'
 import { HitlQueue } from './governance/hitl';
 import { runAgentLoop } from './agent-loop';
 import type { AgentTurnResult, BenchmarkRunResult, CompleteFn, ToolCall, ToolContext } from './types';
-import { meanHarnessScore, scoreCase, deterministicCritic, aggregateCriticScore } from './eval/scoring';
+import {
+  meanHarnessScore,
+  scoreCase,
+  deterministicCritic,
+  aggregateCriticScore,
+  caseOutcome,
+  summarizeOutcomes,
+} from './eval/scoring';
 import { GOLDEN_CASES, BENCH_SMOKE_IDS } from './eval/benchmark-cases';
+import {
+  runDeterministicGolden,
+  DETERMINISTIC_GOLDEN_IDS,
+  LLM_REQUIRED_GOLDEN_IDS,
+} from './eval/golden-automation';
 import { classifyToolRisk } from './governance/risk-gate';
 import { parseDoneClaim } from './governance/anti-early-victory';
 import { executeHarnessTool, type ToolExecutorDeps } from './tools/executor';
 import { planSwarm, swarmSystemPrompt } from './swarm/router';
 import type { PendingApproval } from './types';
 import { runLlmCritic, buildWeeklyReport, evaluateShipGates } from './eval/weekly-report';
+import { createRunRecorder } from './replay';
 
 const IMMUTABLE_BASE = [
   'You are JARVIS Prime — operations agent with Karpathy discipline.',
@@ -30,6 +43,8 @@ export interface JarvisPrimeHarnessOptions {
   toolDeps: ToolExecutorDeps;
   pushActivity?: (who: string, action: string, target: string) => void;
   onHitlRequest?: (entry: PendingApproval) => void;
+  /** When set, golden/bench runs append JSONL events for replay. */
+  replayDir?: string;
 }
 
 export class JarvisPrimeHarness {
@@ -151,6 +166,91 @@ export class JarvisPrimeHarness {
       criticScore: aggregateCriticScore(criticScores),
       cases: results,
       manifest: { at: new Date().toISOString(), smoke: true, caseIds: cases.map((c) => c.id) },
+    };
+  }
+
+  /**
+   * Full golden suite — deterministic checks + explicit skips for LLM-only cases.
+   * When `replayDir` is set, every case is recorded with its outcome (incl. skipped).
+   */
+  runFullGoldenSuite(): BenchmarkRunResult {
+    const deterministic = new Set<string>([
+      ...(DETERMINISTIC_GOLDEN_IDS as readonly string[]),
+      ...(LLM_REQUIRED_GOLDEN_IDS as readonly string[]),
+    ]);
+    const results = GOLDEN_CASES.map((def) => {
+      if (deterministic.has(def.id)) {
+        const g = runDeterministicGolden(def.id, this.opts.workspaceRoot);
+        const outcome = g.outcome;
+        const success = outcome === 'pass';
+        const caseScore =
+          outcome === 'skipped'
+            ? 0
+            : scoreCase({
+                success,
+                correctness: success ? 100 : 0,
+                turns: 1,
+                baselineTurns: def.baselineTurns ?? 4,
+                surgical: 100,
+                safety: 100,
+                recovery: 100,
+              });
+        return {
+          id: def.id,
+          success,
+          outcome,
+          turns: 1,
+          tokensIn: 0,
+          tokensOut: 0,
+          wallMs: 0,
+          surgical: 100,
+          safety: 100,
+          recovery: 100,
+          caseScore,
+          notes: g.notes,
+        };
+      }
+      const automated = this.runAutomatedCase(def.id);
+      return {
+        ...automated,
+        outcome: (automated.success ? 'pass' : 'fail') as 'pass' | 'fail',
+      };
+    });
+
+    const summary = summarizeOutcomes(results);
+    if (this.opts.replayDir) {
+      const rec = createRunRecorder({
+        dir: this.opts.replayDir,
+      });
+      rec.runStart({ suite: 'full-golden' });
+      for (const r of results) {
+        rec.caseResult({
+          id: r.id,
+          outcome: caseOutcome(r),
+          caseScore: r.caseScore,
+          notes: r.notes,
+        });
+      }
+      rec.runEnd({
+        harnessScore: meanHarnessScore(results),
+        total: summary.total,
+        scored: summary.scored,
+        skipped: summary.skipped,
+        passed: summary.passed,
+        failed: summary.failed,
+      });
+    }
+
+    return {
+      harness: 'jarvis-prime',
+      harnessScore: meanHarnessScore(results),
+      criticScore: 0,
+      cases: results,
+      manifest: {
+        at: new Date().toISOString(),
+        fullGolden: true,
+        ...summary,
+      },
     };
   }
 

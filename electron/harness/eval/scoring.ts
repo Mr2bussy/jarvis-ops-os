@@ -46,8 +46,56 @@ export function scoreCase(input: {
 }
 
 export function meanHarnessScore(cases: BenchmarkCaseResult[]): number {
-  if (cases.length === 0) return 0;
-  return cases.reduce((a, c) => a + c.caseScore, 0) / cases.length;
+  const scored = cases.filter(isScoredCase);
+  if (scored.length === 0) return 0;
+  return scored.reduce((a, c) => a + c.caseScore, 0) / scored.length;
+}
+
+export type CaseOutcome = 'pass' | 'fail' | 'skipped';
+
+/** Prefer explicit `outcome`; legacy rows fall back to the success boolean. */
+export function caseOutcome(c: BenchmarkCaseResult & { outcome?: string }): CaseOutcome {
+  if (c.outcome === 'skipped' || c.outcome === 'pass' || c.outcome === 'fail') {
+    return c.outcome;
+  }
+  return c.success ? 'pass' : 'fail';
+}
+
+export function isScoredCase(c: BenchmarkCaseResult & { outcome?: string }): boolean {
+  return caseOutcome(c) !== 'skipped';
+}
+
+export function summarizeOutcomes(cases: Array<BenchmarkCaseResult & { outcome?: string }>): {
+  total: number;
+  scored: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  skippedIds: string[];
+} {
+  let passed = 0;
+  let failed = 0;
+  let skipped = 0;
+  const skippedIds: string[] = [];
+  for (const c of cases) {
+    const o = caseOutcome(c);
+    if (o === 'skipped') {
+      skipped += 1;
+      skippedIds.push(c.id);
+    } else if (o === 'pass') {
+      passed += 1;
+    } else {
+      failed += 1;
+    }
+  }
+  return {
+    total: cases.length,
+    scored: passed + failed,
+    passed,
+    failed,
+    skipped,
+    skippedIds,
+  };
 }
 
 export function compareDelta(jarvis: number, rival: number): number {

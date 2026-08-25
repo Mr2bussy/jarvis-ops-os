@@ -7,6 +7,8 @@
   "author": "JARVIS Operator",
   "scripts": {
     "dev": "concurrently -k -n vite,electron -c green,cyan \"pnpm run dev:vite\" \"wait-on tcp:127.0.0.1:5173 && pnpm run dev:electron\"",
+    "start:prod": "electron .",
+    "launch": "pnpm run build && pnpm run start:prod",
     "dev:vite": "vite",
     "dev:electron": "tsc -p electron/tsconfig.json && electron .",
     "build": "tsc -p electron/tsconfig.json && vite build",
@@ -14,17 +16,38 @@
     "test:watch": "vitest",
     "test:bench": "vitest run electron/harness/bench.test.ts",
     "test:cov": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "bench:smoke": "vitest run electron/harness/bench.test.ts",
     "bench:run": "node scripts/bench/run-suite.mjs",
     "bench:weekly": "node scripts/bench/weekly-loop.mjs",
     "bench:critic": "node scripts/bench/critic-judge.mjs",
     "lint": "eslint .",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "scan:secrets:all": "node scripts/scan-secrets.mjs --all",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"electron/**/*.ts\"",
     "build:win": "npm run build && electron-builder --win --x64",
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
     "start": "electron .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:mutation": "stryker run",
+    "test:flaky": "node scripts/flaky-gate.mjs",
+    "test:security": "vitest run electron/security",
+    "verify": "node scripts/verify.mjs",
+    "doctor": "node scripts/doctor.mjs --tree",
+    "gen:ipc": "node scripts/gen-ipc.mjs",
+    "depcruise": "depcruise --config .dependency-cruiser.cjs electron src",
+    "check:size": "node scripts/check-file-size.mjs",
+    "honesty:report": "node scripts/honesty-report.mjs",
+    "honesty:fail": "node scripts/honesty-report.mjs --fail",
+    "eval:gate": "node scripts/eval-score-gate.mjs",
+    "smoke:connections": "node scripts/connections-smoke.mjs",
+    "smoke:connections:packaged": "node scripts/connections-smoke.mjs --packaged-checklist",
+    "smoke:migration": "node scripts/packaged-migration-smoke.mjs",
+    "smoke:installer": "pwsh -NoProfile -File scripts/installer-smoke.ps1 -DryRun",
+    "lint:hex": "node scripts/lint-no-hex-components.mjs",
+    "sbom": "node scripts/generate-sbom.mjs",
+    "check:voice-slo": "node scripts/check-voice-slo.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -68,7 +91,13 @@
         }
       ],
       "icon": "build-assets/icon.ico",
-      "requestedExecutionLevel": "asInvoker"
+      "requestedExecutionLevel": "asInvoker",
+      "signtoolOptions": {
+        "signingHashAlgorithms": [
+          "sha256"
+        ],
+        "publisherName": null
+      }
     },
     "nsis": {
       "oneClick": false,
@@ -80,7 +109,10 @@
       "uninstallerIcon": "build-assets/icon.ico",
       "installerSidebar": "build-assets/installer-sidebar.bmp",
       "license": "build-assets/LICENSE.txt",
-      "include": "build-assets/installer.nsh"
+      "include": "build-assets/installer.nsh",
+      "artifactName": "JARVIS-Ops-OS-Setup-${version}.${ext}",
+      "uninstallDisplayName": "JARVIS Operations OS",
+      "allowToChangeInstallationDirectory": true
     },
     "mac": {
       "target": "dmg",
@@ -91,29 +123,45 @@
       "target": "AppImage",
       "icon": "build-assets/icon.png",
       "category": "Utility"
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://releases.jarvis-ops.local/"
     }
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@composio/core": "^0.10.0",
+    "@huggingface/transformers": "^4.2.0",
+    "better-sqlite3": "^11.10.0",
+    "electron-updater": "^6.6.2",
+    "execa": "^9.6.0",
     "lightweight-charts": "^5.2.0",
     "node-cron": "^4.2.1",
+    "pino": "^9.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "wavefile": "^11.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.14.10",
     "@types/node-cron": "^3.0.11",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/coverage-v8": "3.2.6",
+    "axe-core": "^4.13.0",
     "concurrently": "^9.2.1",
-    "electron": "^31.7.7",
+    "dependency-cruiser": "^16.10.0",
+    "electron": "^43.4.1",
     "electron-builder": "^26.8.1",
     "eslint": "^10.4.1",
     "eslint-config-prettier": "^10.1.8",
