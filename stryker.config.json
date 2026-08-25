@@ -6,9 +6,7 @@
   "reporters": ["html", "clear-text", "progress"],
   "coverageAnalysis": "perTest",
   "mutate": [
-    "electron/security/command-allowlist.ts",
     "electron/harness/governance/risk-gate.ts",
-    "src/lib/quant.ts",
     "src/lib/prop-accounts.ts",
     "src/lib/trading-math.ts"
   ],

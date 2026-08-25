@@ -549,11 +549,11 @@ Optional heavy flags: `VERIFY_E2E=1`, `VERIFY_E2E_STRICT=1`, `VERIFY_VOICE_SLO=1
 
 Kein force-push. Remote `https://github.com/Mr2bussy/jarvis-ops-os` (private); `gh` = Mr2bussy.
 
-| D      | Score     | Evidence                                                                                                                                                                             |
-| ------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **D1** | **12/12** | Hard-deny `.compare`/`_compare`/`*.bak*` (gitignore is not enough); staged+tracked bak/huge; `doctor --self-test` exit-code fixtures + zweite Kopie; husky + CI + verify             |
-| **D2** | **12/12** | Full threat-model attack chains; allowlist fuzz ≥10k; `scan-secrets --fail-on-new`; `audit-gate` + `docs/AUDIT-EXCEPTIONS.md`; `pnpm test:security` in verify+CI                     |
-| **D3** | **11/12** | Flaky CI job ×3; coverage floors **92.5%** lines; Stryker break 70 + 5-module mutate set; **branch protection 403** (GitHub Pro / public required) — see `docs/BRANCH-PROTECTION.md` |
+| D      | Score     | Evidence                                                                                                                                                                                                                              |
+| ------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D1** | **12/12** | Hard-deny `.compare`/`_compare`/`*.bak*` (gitignore is not enough); staged+tracked bak/huge; `doctor --self-test` exit-code fixtures + zweite Kopie; husky + CI + verify                                                              |
+| **D2** | **12/12** | Full threat-model attack chains; allowlist fuzz ≥10k; `scan-secrets --fail-on-new`; `audit-gate` + `docs/AUDIT-EXCEPTIONS.md`; `pnpm test:security` in verify+CI                                                                      |
+| **D3** | **11/12** | Flaky CI job ×3; coverage floors **92.5%** lines; Stryker break 70 (3-file gate **76.40**; full 5-module attempt **61.03** — not lowered); **branch protection 403** (GitHub Pro / public required) — see `docs/BRANCH-PROTECTION.md` |
 
 ### Branch protection
 
